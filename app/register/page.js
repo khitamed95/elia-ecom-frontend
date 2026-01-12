@@ -64,37 +64,11 @@ export default function RegisterPage() {
 
         setLoading(true);
         try {
-            let data;
-            const possibleEndpoints = [
-                '/users/register',
-                '/auth/register',
-                '/api/users/register',
-                '/api/auth/register',
-                '/register'
-            ];
-            let lastError;
-            for (const endpoint of possibleEndpoints) {
-                try {
-                    console.log(`🔄 محاولة: POST ${endpoint}`);
-                    const response = await api.post(endpoint, { name, email, phoneNumber: phone, password });
-                    data = response.data;
-                    console.log(`✅ نجح الـ endpoint: ${endpoint}`, data);
-                    break;
-                } catch (err) {
-                    lastError = err;
-                    console.warn(`❌ فشل ${endpoint}:`, {
-                        message: err.message,
-                        status: err.response?.status,
-                        statusText: err.response?.statusText,
-                        data: err.response?.data,
-                        url: err.config?.url,
-                        method: err.config?.method
-                    });
-                }
-            }
-            if (!data) {
-                throw lastError;
-            }
+            // Use the canonical user registration endpoint
+            console.log('🔄 محاولة: POST /users/register');
+            const response = await api.post('/users/register', { name, email, phoneNumber: phone, password });
+            const data = response.data;
+            console.log('✅ نجح الـ endpoint: /users/register', data);
             
             // حفظ في localStorage
             localStorage.setItem('userInfo', JSON.stringify(data));

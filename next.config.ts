@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Dev cross-origin warnings will be ignored; allowedDevOrigins not supported here
   
   images: {
     remotePatterns: [
@@ -20,7 +21,7 @@ const nextConfig: NextConfig = {
       // Add your production backend domain
       {
         protocol: 'https',
-        hostname: 'your-backend-domain.com',
+        hostname: 'elia-ecom-backend.onrender.com',
         pathname: '/uploads/**',
       },
     ],

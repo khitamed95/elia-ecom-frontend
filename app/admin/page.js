@@ -55,7 +55,7 @@ export default function AdminMainPage() {
         if (checking) return;
         const fetchStats = async () => {
             try {
-                const { data } = await api.get('/stats');
+                const { data } = await api.get('/api/stats');
                 setStats(data);
             } catch (err) {
                 // إذا حصل خطأ 403، قد تكون الجلسة غير صحيحة

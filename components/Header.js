@@ -41,17 +41,24 @@ const Header = () => {
 
   const fetchNotificationsCount = async () => {
     try {
+      const token = userInfo?.accessToken;
+      if (!token) return; // Skip if no token
+      
       const response = await fetch(`${API_URL}/api/notifications`, {
         headers: {
-          'Authorization': `Bearer ${userInfo?.accessToken}`
+          'Authorization': `Bearer ${token}`
         }
       });
       if (response.ok) {
         const data = await response.json();
         setUnreadCount(data.unreadCount || 0);
+      } else if (response.status === 401) {
+        // User not authenticated, silently ignore
+        setUnreadCount(0);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setUnreadCount(0);
     }
   }; 
 

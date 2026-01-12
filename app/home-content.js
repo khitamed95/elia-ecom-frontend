@@ -30,7 +30,7 @@ export function HomePageContent() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const { data } = await api.get('/products');
+                const { data } = await api.get('/api/products');
                 setAllProducts(data);
                 
                 // تطبيق البحث إذا كان موجوداً
@@ -107,21 +107,29 @@ export function HomePageContent() {
                         <span className="text-white text-sm font-semibold">{currentSeason} {currentYear} 🌟</span>
                     </div>
                     
-                    <h1 className="text-5xl md:text-7xl font-black text-white mb-6 leading-tight">
-                        تسوق الأزياء الفاخرة
+                    <h1 className="text-6xl md:text-8xl font-black text-white mb-6 leading-tight">
+                        أناقة لا تُنسى
                     </h1>
                     
-                    <p className="text-xl text-white/90 mb-8 font-light">
+                    <p className="text-2xl text-white/90 mb-8 font-light">
                         اكتشف أحدث المجموعات من ماركات عالمية حصرية وتمتع بتجربة تسوق لا تُنسى
                     </p>
                     
-                    <button 
-                        onClick={scrollToProducts}
-                        className="inline-flex items-center gap-2 bg-white text-indigo-600 px-8 py-4 rounded-full font-bold hover:scale-105 transition-transform duration-300 shadow-2xl"
-                    >
-                        <ShoppingBag size={20} />
-                        اكتشف المنتجات
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button 
+                            onClick={scrollToProducts}
+                            className="inline-flex items-center gap-2 bg-white text-indigo-600 px-8 py-4 rounded-full font-bold transition-all duration-300 shadow-2xl hover:bg-indigo-700 hover:text-white"
+                        >
+                            <ShoppingBag size={20} />
+                            تسوق الآن
+                        </button>
+                        <Link 
+                            href="#features"
+                            className="inline-flex items-center gap-2 bg-white/20 text-white px-8 py-4 rounded-full font-bold transition-all duration-300 border border-white/40 hover:bg-white/30"
+                        >
+                            اكتشف المزايا
+                        </Link>
+                    </div>
                 </div>
             </header>
             )}
@@ -138,7 +146,7 @@ export function HomePageContent() {
                     
                     {!isSearching && (
                         <div>
-                            <h2 className="text-4xl font-black mb-12 text-center">المنتجات المتاحة</h2>
+                            <h2 className="text-5xl font-black mb-12 text-center">المنتجات المتاحة</h2>
                             
                             {/* فلاتر التصنيفات */}
                             <div className="flex flex-wrap gap-3 justify-center mb-12">
@@ -182,7 +190,7 @@ export function HomePageContent() {
                                                 {product.discount}%
                                             </div>
                                         </div>
-                                        <h3 className="font-bold text-lg mb-2">{product.name}</h3>
+                                        <h3 className="font-extrabold text-2xl md:text-3xl tracking-tight mb-2">{product.name}</h3>
                                         <div className="flex items-center justify-between">
                                             <div className="flex gap-2">
                                                 <span className="font-bold text-indigo-600">${product.price}</span>
@@ -206,8 +214,8 @@ export function HomePageContent() {
 
             {/* Features Section */}
             <section className="py-20 bg-gradient-to-r from-indigo-50 to-purple-50">
-                <div className="max-w-7xl mx-auto px-4">
-                    <h2 className="text-4xl font-black text-center mb-12">لماذا تختار إيليا؟</h2>
+                <div id="features" className="max-w-7xl mx-auto px-4">
+                    <h2 className="text-5xl font-black text-center mb-12">لماذا تختار إيليا؟</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {[
                             { icon: Zap, title: 'توصيل سريع', desc: 'توصيل في أقل من 48 ساعة' },
