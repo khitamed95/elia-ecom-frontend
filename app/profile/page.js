@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { fetchUserProfile } from '@/app/actions';
 import ProfileClient from './profile-client';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'الملف الشخصي',
   description: 'إدارة الملف الشخصي الخاص بك'
