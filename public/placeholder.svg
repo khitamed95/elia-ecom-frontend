@@ -1,0 +1,9 @@
+<svg width="400" height="533" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="533" fill="#f3f4f6"/>
+  <text x="50%" y="50%" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#9ca3af" dy=".3em">
+    لا توجد صورة
+  </text>
+  <text x="50%" y="58%" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#d1d5db" dy=".3em">
+    No Image Available
+  </text>
+</svg>
