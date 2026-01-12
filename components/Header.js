@@ -13,7 +13,7 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isClient, setIsClient] = useState(false); // Track if the component is mounted on the client
   const [unreadCount, setUnreadCount] = useState(0);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // استخدام Context لحساب عدد المنتجات
   const { cartItems } = useCart();

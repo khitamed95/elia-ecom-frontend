@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { deleteProduct } from '@/app/actions';
 
-const API_URL = 'http://192.168.1.158:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AdminProductsClient({ products: initialProducts }) {
     const [products, setProducts] = useState(initialProducts);

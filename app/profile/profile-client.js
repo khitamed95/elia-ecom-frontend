@@ -22,7 +22,7 @@ export default function ProfileClient({ initialUser }) {
     const [email, setEmail] = useState(initialUser?.email || '');
     const [image, setImage] = useState(null);
     const [preview, setPreview] = useState(initialUser?.avatar || '');
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];

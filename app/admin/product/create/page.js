@@ -32,7 +32,7 @@ const getImageUrl = (path) => {
     if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) {
         return path;
     }
-    return `http://192.168.1.158:5000${path.startsWith('/') ? '' : '/'}${path}`;
+    return `${process.env.NEXT_PUBLIC_API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 export default function CreateProductPage() {

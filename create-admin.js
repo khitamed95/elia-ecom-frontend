@@ -7,7 +7,7 @@
 
 const axios = require('axios');
 
-const API_URL = 'http://192.168.1.158:5000/api';
+const API_URL = process.env.API_URL;
 
 const adminData = {
     name: 'Admin User',

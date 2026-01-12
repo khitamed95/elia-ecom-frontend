@@ -28,7 +28,7 @@ export default function AdminOrdersPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState(null);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     const fetchOrders = async () => {
         try {

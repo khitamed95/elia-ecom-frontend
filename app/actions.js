@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-const API_URL = process.env.API_URL || 'http://192.168.1.158:5000/api';
+const API_URL = process.env.API_URL;
 
 // ==================== الإشعارات ====================
 export async function fetchNotifications() {

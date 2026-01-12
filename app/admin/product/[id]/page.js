@@ -17,7 +17,7 @@ export default function ProductDetailsPage() {
         if (!path) return '/placeholder.png';
         if (path.startsWith('http')) return path;
         const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `http://192.168.1.158:5000${cleanPath}`;
+        return `${process.env.NEXT_PUBLIC_API_URL}${cleanPath}`;
     };
 
     useEffect(() => {

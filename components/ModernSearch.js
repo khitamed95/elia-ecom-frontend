@@ -10,7 +10,7 @@ export default function ModernSearch() {
     const [loading, setLoading] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const searchRef = useRef(null);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000'; 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL; 
 
     // كلمات البحث الرائجة (يمكنك جلبها من السيرفر لاحقاً)
     const trendingTags = ['جاكيت جلد', 'فستان سهرة', 'أحذية رياضية', 'قميص صيفي'];

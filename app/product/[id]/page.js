@@ -43,7 +43,7 @@ export default function ProductDetailsPage() {
     function getImageUrl(img) {
         if (!img || img === 'undefined' || img === 'null') return '/placeholder.svg';
         
-        const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000';
+        const BASE = process.env.NEXT_PUBLIC_API_URL;
         
         // معالجة روابط تحتوي على undefined
         if (typeof img === 'string' && img.includes('/uploads/undefined')) {

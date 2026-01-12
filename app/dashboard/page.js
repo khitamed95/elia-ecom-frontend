@@ -20,7 +20,7 @@ export default function DashboardPage() {
     const [orders, setOrders] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     useEffect(() => {
         const fetchDashboardData = async () => {

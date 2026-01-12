@@ -14,7 +14,7 @@ export const CartProvider = ({ children }) => {
     const getCartImageUrl = (path) => {
         if (!path) return "/placeholder.png";
         if (path.startsWith('http') || path.startsWith('data:')) return path;
-        return `http://192.168.1.158:5000${path.startsWith('/') ? '' : '/'}${path}`;
+        return `${process.env.NEXT_PUBLIC_API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
     };
 
     useEffect(() => {
