@@ -6,6 +6,8 @@ import { cookies } from 'next/headers';
 import { fetchProductsForAdmin } from '@/app/actions';
 import AdminProductsClient from './admin-products-client';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'إدارة المنتجات',
   description: 'إدارة منتجات المتجر'
