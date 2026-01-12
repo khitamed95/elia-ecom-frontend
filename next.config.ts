@@ -3,12 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
-  allowedDevOrigins: ['192.168.1.158', 'localhost'],
-  
-  // إصلاح تحذير turbopack multiple lockfiles
-  turbopack: {
-    root: 'C:/Users/E-Tech/elia-ecom-frontend',
-  },
   
   images: {
     remotePatterns: [
@@ -22,6 +16,12 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
         pathname: '/**',
+      },
+      // Add your production backend domain
+      {
+        protocol: 'https',
+        hostname: 'your-backend-domain.com',
+        pathname: '/uploads/**',
       },
     ],
   },

@@ -108,7 +108,13 @@ const Header = () => {
   }, [router]);
 
   const logoutHandler = () => {
+    // حذف من localStorage
     localStorage.removeItem('userInfo');
+    
+    // حذف من Cookies
+    document.cookie = 'accessToken=; path=/; max-age=0';
+    document.cookie = 'userInfo=; path=/; max-age=0';
+    
     setUserInfo(null); 
     setDropdownOpen(false);
     window.dispatchEvent(new CustomEvent('userLogout')); 

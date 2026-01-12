@@ -24,7 +24,15 @@ export default function RegisterPage() {
                 const { data } = await api.post('/users/auth/google', {
                     accessToken: tokenResponse.access_token
                 });
+                
+                // حفظ في localStorage
                 localStorage.setItem('userInfo', JSON.stringify(data));
+                
+                // حفظ في Cookies للـ Server Components
+                const token = data.accessToken || data.token;
+                document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
+                document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
+                
                 window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
                 toast.success(`أهلاً بك، ${data.name}`);
                 router.replace('/');
@@ -87,7 +95,15 @@ export default function RegisterPage() {
             if (!data) {
                 throw lastError;
             }
+            
+            // حفظ في localStorage
             localStorage.setItem('userInfo', JSON.stringify(data));
+            
+            // حفظ في Cookies للـ Server Components
+            const token = data.accessToken || data.token;
+            document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
+            document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
+            
             window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
             toast.success('تم إنشاء الحساب بنجاح');
             router.replace('/');

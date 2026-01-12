@@ -25,7 +25,13 @@ export default function LoginPage() {
                     accessToken: tokenResponse.access_token
                 });
 
+                // حفظ في localStorage
                 localStorage.setItem('userInfo', JSON.stringify(data));
+                
+                // حفظ في Cookies للـ Server Components
+                document.cookie = `accessToken=${data.accessToken || data.token}; path=/; max-age=2592000; SameSite=Strict`;
+                document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
+                
                 window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
                 toast.success(`مرحباً بك، ${data.name}`);
                 router.replace(data.isAdmin ? '/admin' : '/');
@@ -58,7 +64,14 @@ export default function LoginPage() {
             // ✅ المسار الموحد والمباشر
             const { data } = await api.post('/users/login', { email, password });
 
+            // حفظ في localStorage
             localStorage.setItem('userInfo', JSON.stringify(data));
+            
+            // حفظ في Cookies للـ Server Components (30 يوم)
+            const token = data.accessToken || data.token;
+            document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
+            document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
+            
             window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
             
             toast.success(`أهلاً بك مجدداً ${data.name}`);
