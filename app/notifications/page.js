@@ -1,4 +1,7 @@
 import React from 'react';
+
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { Bell, BellOff } from 'lucide-react';
 import { fetchNotifications } from '@/app/actions';

@@ -1,4 +1,7 @@
 'use client';
+
+export const dynamic = 'force-dynamic';
+
 import React, { useState } from 'react';
 import { ShieldCheck, Database, Lock, RefreshCcw, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';

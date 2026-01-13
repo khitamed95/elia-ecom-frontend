@@ -1,4 +1,7 @@
 'use client';
+
+export const dynamic = 'force-dynamic';
+
 import api from '@/lib/axios';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';

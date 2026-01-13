@@ -1,4 +1,7 @@
 'use client';
+
+export const dynamic = 'force-dynamic';
+
 import * as XLSX from 'xlsx';
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/axios';

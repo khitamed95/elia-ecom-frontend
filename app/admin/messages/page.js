@@ -1,4 +1,7 @@
 "use client";
+
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { Loader2, Trash2, Eye, Reply } from "lucide-react";
