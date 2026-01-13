@@ -66,7 +66,7 @@ export default function RegisterPage() {
         try {
             // Use the canonical user registration endpoint
             console.log('🔄 محاولة: POST /users/register');
-            const response = await api.post('/users/register', { name, email, phoneNumber: phone, password });
+            const response = await api.post('/users/register', { name, email, phone, password });
             const data = response.data;
             console.log('✅ نجح الـ endpoint: /users/register', data);
             
