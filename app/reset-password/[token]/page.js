@@ -22,7 +22,7 @@ export default function ResetPasswordPage() {
         // التحقق من صلاحية الرمز عند تحميل الصفحة
         const validateToken = async () => {
             try {
-                await api.get(`/api/users/reset-password/${token}`);
+                await api.get(`/users/reset-password/${token}`);
                 setTokenValid(true);
             } catch (error) {
                 toast.error('رابط إعادة التعيين غير صالح أو منتهي الصلاحية');

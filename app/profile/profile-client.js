@@ -7,28 +7,65 @@ import {
     Camera, 
     Mail, 
     Save, 
-    Loader2, 
     ArrowRight,
     ShieldCheck,
     LogOut
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import Button from '@/components/Button';
 import { updateUserProfile } from '@/app/actions';
 
 export default function ProfileClient({ initialUser }) {
     const router = useRouter();
     const [updateLoading, setUpdateLoading] = useState(false);
+    const [user, setUser] = useState(initialUser);
     const [name, setName] = useState(initialUser?.name || '');
     const [email, setEmail] = useState(initialUser?.email || '');
     const [image, setImage] = useState(null);
     const [preview, setPreview] = useState(initialUser?.avatar || '');
+    const [cacheKey, setCacheKey] = useState(Date.now());
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    const getAvatarUrl = (path) => {
+        if (!path) return '/placeholder.svg';
+        if (path.startsWith('http')) return path;
+        if (path.startsWith('blob:')) return path;
+        const BASE = API_URL || 'http://192.168.1.158:5000/api';
+        let finalUrl = '';
+        if (path.startsWith('/')) {
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                finalUrl = `${baseUrl}${path}`;
+            } else {
+                finalUrl = `${BASE}${path}`;
+            }
+        } else {
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${path}`;
+        }
+        const sep = finalUrl.includes('?') ? '&' : '?';
+        return `${finalUrl}${sep}v=${cacheKey}`;
+    };
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // التحقق من حجم الملف (5MB كحد أقصى)
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            if (file.size > MAX_SIZE) {
+                toast.error('حجم الملف يجب أن يكون أقل من 5MB');
+                return;
+            }
+            
+            // التحقق من نوع الملف
+            if (!file.type.startsWith('image/')) {
+                toast.error('الملف يجب أن يكون صورة');
+                return;
+            }
+            
             setImage(file);
             setPreview(URL.createObjectURL(file));
+            setCacheKey(Date.now());
         }
     };
 
@@ -46,12 +83,12 @@ export default function ProfileClient({ initialUser }) {
             const data = await updateUserProfile(formData);
             
             // تحديث بيانات localStorage
-            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
             const updatedUserInfo = { 
                 ...userInfo, 
                 name: data.name, 
                 email: data.email || email,
-                avatar: data.avatar,
+                avatar: data.avatar || preview, // استخدام المعاينة إذا لم يرجع الـ backend الصورة
                 id: data.id || userInfo.id,
                 isAdmin: data.isAdmin !== undefined ? data.isAdmin : userInfo.isAdmin,
                 token: userInfo.token || userInfo.accessToken,
@@ -59,7 +96,13 @@ export default function ProfileClient({ initialUser }) {
             };
             localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo));
 
-            window.dispatchEvent(new CustomEvent('userLogin'));
+            // تحديث الـ state المحلي
+            setUser(updatedUserInfo);
+            setPreview(updatedUserInfo.avatar || preview); // تأكد من ظهور الصورة
+            setCacheKey(Date.now());
+            setImage(null); // إعادة تعيين الملف
+            
+            window.dispatchEvent(new CustomEvent('userLogin', { detail: updatedUserInfo }));
             
             toast.success('تم تحديث بروفايلك بنجاح ✨');
             
@@ -81,17 +124,24 @@ export default function ProfileClient({ initialUser }) {
         document.cookie = 'accessToken=; path=/; max-age=0';
         document.cookie = 'userInfo=; path=/; max-age=0';
         
+        // إخبار الخادم بتسجيل الخروج
+        fetch('/api/auth/logout', { method: 'POST' })
+          .catch(err => console.error('خطأ في تسجيل الخروج:', err));
+        
+        window.dispatchEvent(new CustomEvent('userLogout'));
         router.push('/login');
     };
 
     return (
         <>
-            <button 
-                onClick={() => router.back()} 
-                className="flex items-center gap-2 text-gray-400 hover:text-indigo-600 mb-8 font-bold transition-all"
+            <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="mb-8 rtl"
             >
                 <ArrowRight size={20} /> العودة للمتجر
-            </button>
+            </Button>
 
             <div className="bg-white rounded-[3.5rem] shadow-xl border border-gray-100 overflow-hidden">
                 {/* Header */}
@@ -104,11 +154,11 @@ export default function ProfileClient({ initialUser }) {
                             <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
                                 {preview ? (
                                     <img 
-                                        src={preview.startsWith('http') ? preview : `${API_URL}${preview}`} 
+                                        src={getAvatarUrl(preview)} 
                                         className="w-full h-full object-cover" 
                                         alt="Profile" 
                                         onError={(e) => {
-                                            e.target.src = '';
+                                            e.target.src = '/placeholder.svg';
                                         }}
                                     />
                                 ) : (
@@ -157,26 +207,26 @@ export default function ProfileClient({ initialUser }) {
                     </div>
 
                     <div className="mt-10 flex flex-col gap-4">
-                        <button 
-                            type="submit" 
-                            disabled={updateLoading}
-                            className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 transition-all disabled:opacity-50"
+                        <Button 
+                            variant="success"
+                            size="lg"
+                            type="submit"
+                            loading={updateLoading}
+                            className="w-full"
                         >
-                            {updateLoading ? (
-                                <Loader2 className="animate-spin" size={24} />
-                            ) : (
-                                <Save size={24} />
-                            )}
+                            <Save size={24} />
                             حفظ التغييرات الحالية
-                        </button>
+                        </Button>
 
-                        <button 
+                        <Button 
+                            variant="danger"
+                            size="md"
                             type="button"
                             onClick={handleLogout}
-                            className="w-full py-4 text-red-500 font-bold flex items-center justify-center gap-2 hover:bg-red-50 rounded-2xl transition-all"
+                            className="w-full"
                         >
                             <LogOut size={20} /> تسجيل الخروج
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

@@ -36,58 +36,52 @@ export default function AdminMainPage() {
 
     // 1. التحقق من صلاحيات الأدمن وحماية المسار
     useEffect(() => {
-        // التحقق من الجلسة
-        if (!isValidSession()) {
-            toast.error('يجب تسجيل الدخول أولاً');
-            router.push('/login?redirect=/admin');
-            return;
-        }
-        
-        const user = getCurrentUser();
-       if (!isValidSession() || user?.isAdmin !== true) {
-            toast.error('ليس لديك صلاحية الوصول لوحة التحكم');
-            router.replace('/'); 
-            return;
-        }
-        setChecking(false);
-    }, [router]);
-
-    // 2. جلب الإحصائيات الموحدة من الباك إند
-   useEffect(() => {
-        if (checking) return;
-        const fetchStats = async () => {
+        const checkAuth = async () => {
+            // التحقق من الجلسة
+            if (!isValidSession()) {
+                toast.error('يجب تسجيل الدخول أولاً');
+                router.push('/login?redirect=/admin');
+                return;
+            }
+            
+            const user = getCurrentUser();
+            if (!user?.isAdmin) {
+                toast.error('ليس لديك صلاحية الوصول لوحة التحكم');
+                router.replace('/'); 
+                return;
+            }
+            
+            // فقط بعد التحقق من الصلاحيات، نجلب الإحصائيات
+            setChecking(false);
+            
             try {
                 const { data } = await api.get('/api/stats');
                 setStats(data);
             } catch (err) {
-                // إذا حصل خطأ 403، قد تكون الجلسة غير صحيحة
-                if (err.response?.status === 403) {
-                    toast.error('انتهت جلسة المسؤول أو تم رفع الصلاحيات');
-                    // حاول التحقق من الملف الشخصي
-                    try {
-                        const userRes = await api.get('/users/profile');
-                        if (userRes.data && userRes.data.isAdmin) {
-                            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-                            userInfo.isAdmin = userRes.data.isAdmin;
-                            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                            // أعد المحاولة
-                            const retryRes = await api.get('/stats');
-                            setStats(retryRes.data);
-                        } else {
-                            router.replace('/');
-                        }
-                    } catch {
-                        router.replace('/login');
-                    }
+                // إذا حصل خطأ 401، نعيد توجيه للتسجيل
+                if (err.response?.status === 401) {
+                    toast.error('انتهت صلاحية الجلسة - يرجى تسجيل الدخول مرة أخرى');
+                    router.push('/login?redirect=/admin');
+                    return;
+                }
+                // إذا حصل خطأ 403 أو 404، الإحصائيات قد لا تكون متاحة
+                if (err.response?.status === 403 || err.response?.status === 404) {
+                    console.warn('تحذير: لم يتمكن من جلب الإحصائيات:', err.response?.status);
+                    setStats({
+                        users: { total: 0, regular: 0, admins: 0 },
+                        sales: { totalOrders: 0, totalRevenue: 0 }
+                    });
                 } else {
-                    console.error(err);
+                    console.error('خطأ في جلب الإحصائيات:', err);
                     setError('فشل جلب الإحصائيات');
                 }
+            } finally {
+                setLoading(false);
             }
-            finally { setLoading(false); }
         };
-        fetchStats();
-    }, [checking, router]);
+        
+        checkAuth();
+    }, [router]);
 
     // أدوات الإدارة مع البيانات الديناميكية المحدثة
     const adminTools = [

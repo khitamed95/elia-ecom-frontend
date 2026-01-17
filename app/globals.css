@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Beautiful Buttons */
+@import "./buttons.css";
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -24,7 +27,7 @@
 
 body {
   background: var(--background);
-    @apply text-slate-900 bg-[#f8fafc];
+    @apply text-slate-900 bg-gradient-to-br from-gray-50 via-white to-indigo-50;
     color: #1a1a1a; 
   font-family: var(--font-cairo), sans-serif;
 }
@@ -47,6 +50,32 @@ html {
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradient 3s ease infinite;
+}
+
+/* مكونات عصرية */
+@layer components {
+  .card-modern {
+    @apply bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-100/50 
+           p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1;
+  }
+  
+  .btn-gradient {
+    @apply bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl 
+           px-6 py-3 font-semibold hover:from-indigo-700 hover:to-purple-700 
+           transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+  
+  .input-modern {
+    @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 
+           focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 
+           transition-all duration-200 bg-white/50 backdrop-blur-sm;
+  }
+  
+  .badge-modern {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+           bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700
+           border border-indigo-100;
+  }
 }
 
 /* تأثير التلاشي عند التحميل */

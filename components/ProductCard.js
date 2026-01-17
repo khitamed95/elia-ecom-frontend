@@ -1,12 +1,21 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import { getImageUrl } from '@/lib/imageUtil'; 
 
 const ProductCard = ({ product, isAdmin = false, onDelete }) => {
   const router = useRouter();
+  const [imgCacheKey, setImgCacheKey] = useState(null);
+
+  // احصل على timestamp من localStorage لكسر الكاش
+  useEffect(() => {
+    if (typeof window !== 'undefined' && product._id) {
+      const stored = localStorage.getItem(`img_ts_${product._id}`);
+      setImgCacheKey(stored || Date.now());
+    }
+  }, [product._id]);
 
   const handleDelete = (e) => {
     e.stopPropagation();
@@ -22,18 +31,28 @@ const ProductCard = ({ product, isAdmin = false, onDelete }) => {
     });
   };
 
+  // بناء URL الصورة مع cache buster
+  const imageUrl = () => {
+    const baseUrl = getImageUrl(product.image);
+    if (!imgCacheKey || baseUrl.startsWith('blob:') || baseUrl.startsWith('data:')) {
+      return baseUrl;
+    }
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}v=${imgCacheKey}`;
+  };
+
   return (
     <div 
       onClick={() => router.push(`/product/${product.id}`)}
-      className='bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer border border-gray-100 flex flex-col h-full group'
+      className='bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-gray-100 flex flex-col h-full group'
     >
       {/* الصورة */}
       <div className="relative h-72 overflow-hidden bg-gray-50">
         <img
-          src={getImageUrl(product.image)}
+          src={imageUrl()}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          onError={e => { e.target.src = '/placeholder.svg'; }}
+          onError={(e) => { e.target.src = '/placeholder.svg'; }}
         />
       </div>
 

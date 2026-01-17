@@ -55,7 +55,12 @@ export default function MessagesPage() {
   const markAsRead = async (id) => {
     try {
       await api.patch(`/contact/${id}`, { status: "read" });
-      fetchMessages();
+      // تحديث الحالة محلياً بدون إعادة جلب كل الرسائل
+      setMessages(prevMessages => 
+        prevMessages.map(m => 
+          (m.id === id || m._id === id) ? { ...m, status: 'read' } : m
+        )
+      );
     } catch (error) {
       console.error("Error:", error);
     }
@@ -101,32 +106,54 @@ export default function MessagesPage() {
         ) : (
           <div className="space-y-4">
             {messages.map((msg) => (
-              <div key={msg.id || msg._id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+              <div 
+                key={msg.id || msg._id} 
+                className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                onClick={() => {
+                  setSelectedMessage(msg);
+                  if (msg.status !== 'read' && msg.status !== 'replied') {
+                    markAsRead(msg.id || msg._id);
+                  }
+                }}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-xl font-black text-gray-900">{msg.subject}</h3>
                     <p className="text-sm text-gray-500 font-bold">من: {msg.name}</p>
                     <p className="text-sm text-gray-500 font-bold">هاتف: {msg.phone}</p>
                   </div>
-                  <span className={`px-4 py-2 rounded-full text-xs font-black ${msg.status === 'read' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {msg.status === 'read' ? 'مقروء' : 'جديد'}
+                  <span className={`px-4 py-2 rounded-full text-xs font-black ${
+                    msg.status === 'replied' ? 'bg-green-100 text-green-700' :
+                    msg.status === 'read' ? 'bg-blue-100 text-blue-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {msg.status === 'replied' ? 'تم الرد' : msg.status === 'read' ? 'مقروء' : 'جديد'}
                   </span>
                 </div>
 
                 <p className="text-gray-700 mb-4 p-4 bg-gray-50 rounded-xl">{msg.message}</p>
 
+                {/* عرض الردود السابقة إن وجدت */}
+                {msg.replies && msg.replies.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    <p className="text-sm font-bold text-gray-600">الردود السابقة ({msg.replies.length}):</p>
+                    {msg.replies.map((reply, idx) => (
+                      <div key={idx} className="bg-indigo-50 p-3 rounded-lg border-r-4 border-indigo-500">
+                        <p className="text-gray-700 text-sm">{reply.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(reply.createdAt || reply.date).toLocaleDateString('ar-IQ')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <button
-                    onClick={() => {
-                      setSelectedMessage(msg);
-                      markAsRead(msg.id || msg._id);
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteMessage(msg.id || msg._id);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-all"
-                  >
-                    <Eye size={16} /> عرض والرد
-                  </button>
-                  <button
-                    onClick={() => deleteMessage(msg.id || msg._id)}
                     className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold hover:bg-red-200 transition-all"
                   >
                     <Trash2 size={16} /> حذف
@@ -140,11 +167,29 @@ export default function MessagesPage() {
         {/* نافذة الرد */}
         {selectedMessage && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" dir="rtl">
-            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-96 overflow-y-auto">
+            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[600px] overflow-y-auto">
               <h2 className="text-2xl font-black text-gray-900 mb-4">الرد على: {selectedMessage.subject}</h2>
-              <div className="bg-gray-50 p-4 rounded-xl mb-6">
+              <div className="bg-gray-50 p-4 rounded-xl mb-4">
+                <p className="text-sm text-gray-500 font-bold mb-2">الرسالة الأصلية:</p>
                 <p className="text-gray-700">{selectedMessage.message}</p>
               </div>
+              
+              {/* عرض الردود السابقة */}
+              {selectedMessage.replies && selectedMessage.replies.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm font-bold text-gray-600 mb-2">الردود السابقة:</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedMessage.replies.map((reply, idx) => (
+                      <div key={idx} className="bg-indigo-50 p-3 rounded-lg">
+                        <p className="text-gray-700 text-sm">{reply.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(reply.createdAt || reply.date).toLocaleDateString('ar-IQ')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}

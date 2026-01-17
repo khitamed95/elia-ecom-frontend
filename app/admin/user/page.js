@@ -24,6 +24,34 @@ export default function AdminUsersPage() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    // دالة لبناء رابط الصورة الشخصية
+    const getAvatarUrl = (path) => {
+        if (!path) return null;
+        
+        // روابط خارجية
+        if (path.startsWith('http')) return path;
+        
+        // blob URLs
+        if (path.startsWith('blob:')) return path;
+        
+        const BASE = API_URL || 'http://192.168.1.158:5000/api';
+        
+        // إذا كان المسار يبدأ بـ /
+        if (path.startsWith('/')) {
+            // إذا كان المسار يحتوي على /uploads
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                return `${baseUrl}${path}`;
+            }
+            return `${BASE}${path}`;
+        }
+        
+        // مسارات أخرى
+        const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+        return `${baseUrl}/uploads/${path}`;
+    };
 
     // 1. التحقق من الصلاحيات (Admin Protection)
     useEffect(() => {
@@ -48,7 +76,12 @@ export default function AdminUsersPage() {
                 const { data } = await api.get('/users');
                 setUsers(data);
             } catch (err) {
-                toast.error(err.response?.data?.message || 'فشل في جلب البيانات من السيرفر');
+                if (err.response?.status === 404) {
+                    toast.error('خيار إدارة المستخدمين غير متاح حالياً في الخادم');
+                    setUsers([]);
+                } else {
+                    toast.error(err.response?.data?.message || 'فشل في جلب البيانات من السيرفر');
+                }
             } finally {
                 setLoading(false);
             }
@@ -151,7 +184,21 @@ export default function AdminUsersPage() {
 
                             <div className="flex items-start justify-between mb-6">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-inner ${user.isAdmin ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                                    {user.avatar && getAvatarUrl(user.avatar) ? (
+                                        <img 
+                                            src={getAvatarUrl(user.avatar)}
+                                            alt={user.name}
+                                            className={`w-14 h-14 rounded-2xl object-cover shadow-lg ${user.isAdmin ? 'ring-2 ring-green-400' : 'ring-2 ring-blue-400'}`}
+                                            onError={(e) => { 
+                                                e.target.style.display = 'none';
+                                                e.target.nextElementSibling.style.display = 'flex';
+                                            }}
+                                        />
+                                    ) : null}
+                                    <div 
+                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-inner ${user.isAdmin ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}
+                                        style={{ display: user.avatar && getAvatarUrl(user.avatar) ? 'none' : 'flex' }}
+                                    >
                                         {user.name.charAt(0)}
                                     </div>
                                     <div>

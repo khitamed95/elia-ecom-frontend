@@ -349,7 +349,7 @@ export default function AdminOrdersPage() {
                                                             src={item.image?.startsWith('http') ? item.image : `${API_URL}${item.image}`}
                                                             className="w-16 h-16 rounded-xl object-cover shadow-sm" 
                                                             alt={item.name || 'منتج'}
-                                                            onError={(e) => { e.target.src = '/placeholder.png'; }}
+                                                            onError={(e) => { e.target.src = '/placeholder.svg'; }}
                                                         />
                                                         <div className="flex-1">
                                                             <p className="text-sm font-black text-gray-800 line-clamp-1">{item.name || 'منتج'}</p>

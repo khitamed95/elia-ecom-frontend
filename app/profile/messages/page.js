@@ -12,8 +12,14 @@ export default function Messages() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // التحقق من تسجيل الدخول
+    const userInfo = localStorage.getItem('userInfo');
+    if (!userInfo) {
+      router.push('/login');
+      return;
+    }
     fetchMessages();
-  }, []);
+  }, [router]);
 
   const fetchMessages = async () => {
     try {
@@ -23,8 +29,16 @@ export default function Messages() {
       setError('');
     } catch (err) {
       console.error('Error fetching messages:', err);
-      setError(err.response?.data?.message || 'فشل تحميل الرسائل');
-      setMessages([]);
+      if (err.response?.status === 401) {
+        router.push('/login');
+      } else if (err.response?.status === 404) {
+        // Endpoint doesn't exist, show empty list silently
+        setMessages([]);
+        setError('');
+      } else {
+        setError(err.response?.data?.message || 'فشل تحميل الرسائل');
+        setMessages([]);
+      }
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,7 @@ export default function UserMessagesPage() {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState(null);
+    const [expandedMessage, setExpandedMessage] = useState(null);
 
     useEffect(() => {
         const storedUserInfo = localStorage.getItem('userInfo');
@@ -29,10 +30,37 @@ export default function UserMessagesPage() {
             const { data } = await api.get('/contact/my-messages');
             setMessages(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Error fetching messages:', error);
-            toast.error('فشل جلب الرسائل');
+            if (error.response?.status === 404) {
+                // Endpoint doesn't exist, silently show empty list
+                setMessages([]);
+            } else {
+                console.error('Error fetching messages:', error);
+                toast.error('فشل جلب الرسائل');
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const markAsRead = async (msgId) => {
+        try {
+            await api.patch(`/contact/${msgId}`, { status: 'read' });
+            // تحديث الحالة محلياً
+            setMessages(prevMessages => 
+                prevMessages.map(m => 
+                    (m.id === msgId || m._id === msgId) ? { ...m, status: 'read' } : m
+                )
+            );
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    };
+
+    const handleMessageClick = (msg) => {
+        setExpandedMessage(msg.id || msg._id);
+        // تحديد الرسالة كمقروءة تلقائياً عند فتحها
+        if (msg.status !== 'read' && msg.status !== 'replied') {
+            markAsRead(msg.id || msg._id);
         }
     };
 
@@ -85,8 +113,14 @@ export default function UserMessagesPage() {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {messages.map((msg) => (
-                            <div key={msg.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        {messages.map((msg) => {
+                            const isExpanded = expandedMessage === (msg.id || msg._id);
+                            return (
+                            <div 
+                                key={msg.id} 
+                                className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer"
+                                onClick={() => handleMessageClick(msg)}
+                            >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3 mb-2">
@@ -98,40 +132,63 @@ export default function UserMessagesPage() {
                                             }`}>
                                                 {msg.status === 'replied' ? 'تم الرد' : msg.status === 'read' ? 'مقروء' : 'جديد'}
                                             </span>
+                                            {msg.replies && msg.replies.length > 0 && (
+                                                <span className="text-xs text-indigo-600 font-bold">
+                                                    ({msg.replies.length} {msg.replies.length === 1 ? 'رد' : 'ردود'})
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-gray-600 text-sm mb-3">{msg.message}</p>
+                                        <p className={`text-gray-600 text-sm mb-3 ${!isExpanded && 'line-clamp-2'}`}>{msg.message}</p>
                                     </div>
                                 </div>
 
-                                {/* الرد من الإدارة */}
-                                {msg.reply && (
-                                    <div className="mt-6 p-6 bg-indigo-50 rounded-2xl border-r-4 border-indigo-600">
+                                {/* الردود من الإدارة */}
+                                {isExpanded && msg.replies && msg.replies.length > 0 && (
+                                    <div className="mt-6 space-y-4">
                                         <div className="flex items-center gap-2 mb-3 font-bold text-indigo-700">
                                             <Send size={16} />
-                                            رد الفريق الإداري
+                                            ردود الفريق الإداري ({msg.replies.length})
                                         </div>
-                                        <p className="text-gray-700 leading-relaxed">{msg.reply}</p>
-                                        {msg.replyDate && (
-                                            <p className="text-gray-500 text-sm mt-3 flex items-center gap-2">
-                                                <Clock size={14} />
-                                                {new Date(msg.replyDate).toLocaleDateString('ar-IQ')}
-                                            </p>
-                                        )}
+                                        {msg.replies.map((reply, idx) => (
+                                            <div key={idx} className="p-6 bg-indigo-50 rounded-2xl border-r-4 border-indigo-600">
+                                                <p className="text-gray-700 leading-relaxed">{reply.message}</p>
+                                                {reply.createdAt && (
+                                                    <p className="text-gray-500 text-sm mt-3 flex items-center gap-2">
+                                                        <Clock size={14} />
+                                                        {new Date(reply.createdAt).toLocaleDateString('ar-IQ', {
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
 
                                 {/* معلومات الرسالة */}
-                                <div className="mt-6 flex items-center gap-4 text-sm text-gray-500 border-t border-gray-100 pt-4">
-                                    <span className="flex items-center gap-2">
-                                        <Clock size={14} />
-                                        {new Date(msg.createdAt).toLocaleDateString('ar-IQ')}
-                                    </span>
-                                </div>
+                                {isExpanded && (
+                                    <div className="mt-6 flex items-center gap-4 text-sm text-gray-500 border-t border-gray-100 pt-4">
+                                        <span className="flex items-center gap-2">
+                                            <Clock size={14} />
+                                            {new Date(msg.createdAt).toLocaleDateString('ar-IQ', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
         </div>
     );
 }
+

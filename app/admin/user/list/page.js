@@ -20,7 +20,35 @@ const UserListPage = () => {
     const [error, setError] = useState(null);
     const [users, setUsers] = useState([]);
     const [userInfo, setUserInfo] = useState(null); 
-    const [successDelete, setSuccessDelete] = useState(false); 
+    const [successDelete, setSuccessDelete] = useState(false);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    // دالة لبناء رابط الصورة الشخصية
+    const getAvatarUrl = (path) => {
+        if (!path) return null;
+        
+        // روابط خارجية
+        if (path.startsWith('http')) return path;
+        
+        // blob URLs
+        if (path.startsWith('blob:')) return path;
+        
+        const BASE = API_URL || 'http://192.168.1.158:5000/api';
+        
+        // إذا كان المسار يبدأ بـ /
+        if (path.startsWith('/')) {
+            // إذا كان المسار يحتوي على /uploads
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                return `${baseUrl}${path}`;
+            }
+            return `${BASE}${path}`;
+        }
+        
+        // مسارات أخرى
+        const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+        return `${baseUrl}/uploads/${path}`;
+    }; 
 
     // 1. التحقق من صلاحية المسؤول وجلب التوكن من Local Storage
     useEffect(() => {
@@ -49,11 +77,19 @@ const UserListPage = () => {
                     setLoading(true);
                     
                     // المسار الخلفي لجلب جميع المستخدمين
-                    const { data } = await api.get('/users');
-                    
-                    setUsers(data);
+                    try {
+                        const { data } = await api.get('/users');
+                        setUsers(data);
+                        setSuccessDelete(false); // إعادة التعيين
+                    } catch (err) {
+                        if (err.response?.status === 404) {
+                            toast.error('خيار إدارة المستخدمين غير متاح حالياً في الخادم');
+                            setUsers([]);
+                        } else {
+                            throw err;
+                        }
+                    }
                     setLoading(false);
-                    setSuccessDelete(false); // إعادة التعيين
                 } catch (err) {
                     toast.error(err.response?.data?.message || 'فشل في جلب المستخدمين');
                     setError(err.response?.data?.message || err.message);
@@ -70,7 +106,7 @@ const UserListPage = () => {
         if (window.confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
             try {
                 // المسار الخلفي لحذف المستخدم
-                await api.delete(`/api/users/${id}`);
+                await api.delete(`/users/${id}`);
                 
                 toast.success('تم حذف المستخدم بنجاح');
                 // تفعيل successDelete لإعادة جلب القائمة وتحديث الواجهة
@@ -103,6 +139,7 @@ const UserListPage = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الصورة</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الاسم</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">البريد الإلكتروني</th>
@@ -113,6 +150,25 @@ const UserListPage = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {users.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {user.avatar && getAvatarUrl(user.avatar) ? (
+                                            <img 
+                                                src={getAvatarUrl(user.avatar)}
+                                                alt={user.name}
+                                                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
+                                                onError={(e) => { 
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextElementSibling.style.display = 'flex';
+                                                }}
+                                            />
+                                        ) : null}
+                                        <div 
+                                            className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold"
+                                            style={{ display: user.avatar && getAvatarUrl(user.avatar) ? 'none' : 'flex' }}
+                                        >
+                                            {user.name.charAt(0).toUpperCase()}
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800">

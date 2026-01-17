@@ -6,8 +6,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { toast } from 'react-toastify';
+import Button from '@/components/Button';
 import { 
-    Save, ArrowRight, Loader2, Package, ImageIcon, 
+    Save, ArrowRight, Package, ImageIcon, Loader2,
     Tag, Database, Layers, X, Link as LinkIcon, Ruler
 } from 'lucide-react';
 
@@ -35,17 +36,19 @@ export default function EditProductPage() {
     const [uploadMethod, setUploadMethod] = useState('url');
     const [previews, setPreviews] = useState([]);
     const [selectedFiles, setSelectedFiles] = useState([]);
+    const [imageErrors, setImageErrors] = useState({});
+    const [cacheKey, setCacheKey] = useState(Date.now());
     
     const [formData, setFormData] = useState({
         name: '',
-        price: '',
-        oldPrice: '',
+        price: 0,
+        oldPrice: 0,
         image: '',
         brand: 'ELIA',
         category: 'رجالي',
         productType: 'ملابس',
         availableSizes: [],
-        countInStock: '',
+        countInStock: 0,
         description: '',
         isPopular: false,
         rating: 0,
@@ -54,8 +57,35 @@ export default function EditProductPage() {
 
     const getImageUrl = (path) => {
         if (!path) return "/placeholder.png";
-        if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) return path;
-        return `${process.env.NEXT_PUBLIC_API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+        
+        // blob URLs و data URLs تُرجع مباشرة
+        if (path.startsWith('blob:') || path.startsWith('data:')) {
+            return path;
+        }
+        
+        const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000/api';
+        let finalUrl = '';
+        
+        // روابط خارجية
+        if (path.startsWith('http')) {
+            finalUrl = path;
+        } else if (path.startsWith('/')) {
+            // إذا كان المسار يحتوي على /uploads، تأكد من عدم تكرار /api
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                finalUrl = `${baseUrl}${path}`;
+            } else {
+                finalUrl = `${BASE}${path}`;
+            }
+        } else {
+            // مسارات أخرى - افترض أنها تحتاج إلى /uploads
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${path}`;
+        }
+        
+        // إضافة مفتاح كاش لتجنب الصور القديمة من المتصفح
+        const sep = finalUrl.includes('?') ? '&' : '?';
+        return `${finalUrl}${sep}v=${cacheKey}`;
     };
 
     const getAvailableSizes = () => {
@@ -83,7 +113,13 @@ export default function EditProductPage() {
 
     const fetchProduct = useCallback(async () => {
         try {
-            const { data } = await api.get(`/products/${id}`);
+            const { data } = await api.get(`/api/products/${id}`);
+            
+            console.log('📦 بيانات المنتج المُحملة:', {
+                images: data.images,
+                image: data.image,
+                category: data.category
+            });
             
             // استخراج نوع المنتج والفئة من category
             // القيمة قد تكون مثل "ملابس رجالي" أو "أحذية نسائي" إلخ
@@ -113,23 +149,30 @@ export default function EditProductPage() {
             }
             
             setFormData({
-                name: data.name || '',
-                price: data.price || '',
-                oldPrice: data.oldPrice || '',
-                image: data.image || '',
-                brand: data.brand || 'ELIA',
+                name: data.name ?? '',
+                price: Number(data.price ?? 0),
+                oldPrice: Number(data.oldPrice ?? 0),
+                image: data.image ?? '',
+                brand: data.brand ?? 'ELIA',
                 category: category,
                 productType: productType,
-                availableSizes: data.availableSizes || [],
-                countInStock: data.countInStock || 0,
-                description: data.description || '',
-                isPopular: data.isPopular || false,
-                rating: data.rating || 0,
-                numReviews: data.numReviews || 0
+                availableSizes: data.availableSizes ?? [],
+                countInStock: Number(data.countInStock ?? 0),
+                description: data.description ?? '',
+                isPopular: !!data.isPopular,
+                rating: Number(data.rating ?? 0),
+                numReviews: Number(data.numReviews ?? 0)
             });
-            setPreviews(data.images && data.images.length > 0 ? data.images : [data.image]);
+            
+            // تحديد الصور المراد عرضها
+            const imagesToShow = data.images && data.images.length > 0 ? data.images : [data.image];
+            console.log('🖼️ الصور المراد عرضها:', imagesToShow);
+            setPreviews(imagesToShow);
+            setImageErrors({}); // امسح أي أخطاء سابقة
+            setCacheKey(Date.now());
             setLoading(false);
         } catch (err) {
+            console.error('❌ خطأ في جلب بيانات المنتج:', err);
             toast.error('خطأ في جلب بيانات المنتج');
             router.push('/admin/products');
         }
@@ -158,9 +201,49 @@ export default function EditProductPage() {
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        setSelectedFiles(files);
-        setPreviews(files.map(file => URL.createObjectURL(file)));
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB per file
+        
+        console.log('📁 بدء رفع الملفات:', files.length);
+        
+        const validFiles = files.filter(file => {
+            if (file.size > MAX_SIZE) {
+                toast.warning(`الملف ${file.name} يتجاوز 5MB - تم تجاهله`);
+                return false;
+            }
+            if (!file.type.startsWith('image/')) {
+                toast.warning(`${file.name} ليس صورة - تم تجاهله`);
+                return false;
+            }
+            return true;
+        });
+        
+        if (validFiles.length === 0) {
+            toast.error('لم يتم قبول أي ملفات صحيحة');
+            return;
+        }
+        
+        // تنظيف blob URLs القديمة لتجنب memory leaks
+        previews.forEach(url => {
+            if (url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        });
+        
+        setSelectedFiles(validFiles);
+        // إنشاء blob URLs جديدة
+        const newPreviews = validFiles.map(file => {
+            const blobUrl = URL.createObjectURL(file);
+            console.log('🖼️ تم إنشاء blob URL:', blobUrl);
+            return blobUrl;
+        });
+        
+        setPreviews(newPreviews);
+        setImageErrors({}); // امسح أخطاء الصور السابقة
+        setCacheKey(Date.now()); // تحديث مفتاح الكاش
         setUploadMethod('file');
+        
+        console.log('✅ تم تحميل', validFiles.length, 'صورة جديدة');
+        console.log('📝 Blob URLs:', newPreviews);
     };
 
     const submitHandler = async (e) => {
@@ -197,18 +280,88 @@ export default function EditProductPage() {
                 }
             });
 
+            // إضافة جميع الملفات المختارة
             if (selectedFiles.length > 0) {
                 selectedFiles.forEach(file => data.append('images', file));
             }
 
-            if (formData.image) data.append('image', formData.image);
+            console.log('📋 بيانات الإرسال:');
+            console.log('- عدد الملفات:', selectedFiles.length);
+            console.log('- الحقول:', Array.from(data.keys()));
+            console.log('- uploadMethod:', uploadMethod);
+            console.log('- API URL:', `${api.defaults.baseURL}/api/products/${id}`);
 
             try {
-                await api.put(`/products/${id}`, data);
+                console.log('📤 إرسال FormData إلى الخادم...');
+                console.log('📦 عدد الملفات:', selectedFiles.length);
+                
+                const response = await api.put(`/api/products/${id}`, data);
+                
+                console.log('✅ تم الرفع بنجاح - الاستجابة:', {
+                    images: response.data.images,
+                    image: response.data.image,
+                    status: response.status,
+                    fullData: response.data
+                });
+                
+                // 🔥 تحديث localStorage لإجبار تحديث الصور فوراً
+                const newTimestamp = Date.now();
+                localStorage.setItem(`img_ts_${id}`, newTimestamp.toString());
+                console.log(`✅ تم تحديث timestamp للمنتج ${id}: ${newTimestamp}`);
+                
+                // اعرض الصور العائدة من الخادم
+                let serverImages = [];
+                if (response.data?.images && response.data.images.length > 0) {
+                    serverImages = response.data.images;
+                } else if (response.data?.image) {
+                    serverImages = [response.data.image];
+                } else {
+                    // في حالة عدم وجود صور في الرد، استخدم الصور المحلية
+                    console.warn('⚠️ لم يتم إرجاع صور من الخادم');
+                    serverImages = previews;
+                }
+                
+                console.log('🖼️ الصور النهائية:', serverImages);
+                
+                // تحديث المعاينة وإجبار re-render
+                setPreviews(serverImages);
+                setCacheKey(Date.now());
+                setSelectedFiles([]);
+                setImageErrors({}); // امسح أخطاء الصور
+                
                 toast.success('تم التحديث بنجاح ✨');
-                router.push('/admin/products');
+
+                // أطلق حدث لتحديث الصفحة الرئيسية والصفحات الأخرى
+                window.dispatchEvent(new Event('productsUpdated'));
+
+                // انتقل مباشرة لقائمة المنتجات بعد حفظ التغييرات
+                setTimeout(() => {
+                    router.push('/admin/products');
+                }, 600);
             } catch (err) {
-                toast.error('فشل التحديث');
+                console.error('❌ خطأ التحديث:', {
+                    status: err.response?.status,
+                    data: err.response?.data,
+                    message: err.message,
+                    fullError: err
+                });
+                
+                // عرض رسالة خطأ مفصلة
+                let errorMessage = 'فشل التحديث';
+                if (err.response?.data?.message) {
+                    errorMessage = err.response.data.message;
+                } else if (err.response?.data?.error) {
+                    errorMessage = err.response.data.error;
+                } else if (err.message) {
+                    errorMessage = `خطأ: ${err.message}`;
+                }
+                
+                toast.error(errorMessage, {
+                    position: "top-center",
+                    autoClose: 5000
+                });
+                
+                console.log('💡 نصيحة: تحقق من Console للمزيد من التفاصيل');
             } finally {
                 setUpdateLoading(false);
             }
@@ -216,9 +369,27 @@ export default function EditProductPage() {
             // رفع عبر رابط مباشر
             const jsonPayload = { ...payload, image: formData.image || '' };
             try {
-                await api.put(`/products/${id}`, jsonPayload);
+                const response = await api.put(`/api/products/${id}`, jsonPayload);
+                
+                // 🔥 تحديث localStorage لإجبار تحديث الصور فوراً
+                const newTimestamp = Date.now();
+                localStorage.setItem(`img_ts_${id}`, newTimestamp.toString());
+                console.log(`✅ تم تحديث timestamp للمنتج ${id}: ${newTimestamp}`);
+                
                 toast.success('تم التحديث بنجاح ✨');
-                router.push('/admin/products');
+                
+                // تحديث المعاينة بالصورة التي عادت من الخادم (إن وجدت)
+                const newPreview = response.data?.image || formData.image || previews[0];
+                setPreviews([newPreview]);
+                setCacheKey(Date.now());
+
+                // أطلق حدث لتحديث الصفحة الرئيسية والصفحات الأخرى
+                window.dispatchEvent(new Event('productsUpdated'));
+
+                // انتقال سريع إلى صفحة المنتجات بعد الحفظ
+                setTimeout(() => {
+                    router.push('/admin/products');
+                }, 600);
             } catch (err) {
                 toast.error('فشل التحديث');
             } finally {
@@ -280,8 +451,8 @@ export default function EditProductPage() {
                                 <label className="text-sm font-bold text-gray-700">السعر (د.ع) *</label>
                                 <input 
                                     type="number" 
-                                    value={formData.price} 
-                                    onChange={(e) => setFormData({...formData, price: e.target.value})} 
+                                    value={formData.price ?? 0} 
+                                    onChange={(e) => setFormData({...formData, price: Number(e.target.value) || 0})} 
                                     className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 text-green-600 font-black text-xl" 
                                     placeholder="50000"
                                     required 
@@ -292,8 +463,8 @@ export default function EditProductPage() {
                                 <label className="text-sm font-bold text-gray-700">السعر القديم (اختياري)</label>
                                 <input 
                                     type="number" 
-                                    value={formData.oldPrice} 
-                                    onChange={(e) => setFormData({...formData, oldPrice: e.target.value})} 
+                                    value={formData.oldPrice ?? 0} 
+                                    onChange={(e) => setFormData({...formData, oldPrice: Number(e.target.value) || 0})} 
                                     className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 text-red-500 font-bold line-through" 
                                     placeholder="75000"
                                 />
@@ -333,8 +504,8 @@ export default function EditProductPage() {
                                 <label className="text-sm font-bold text-gray-700">الكمية المتوفرة *</label>
                                 <input 
                                     type="number" 
-                                    value={formData.countInStock} 
-                                    onChange={(e) => setFormData({...formData, countInStock: e.target.value})} 
+                                    value={formData.countInStock ?? 0} 
+                                    onChange={(e) => setFormData({...formData, countInStock: Number(e.target.value) || 0})} 
                                     className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-bold" 
                                     placeholder="100"
                                     required 
@@ -391,11 +562,43 @@ export default function EditProductPage() {
                         </h2>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            {previews.map((src, index) => (
-                                <div key={index} className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-md border-2 border-gray-100">
-                                    <img src={getImageUrl(src)} className="w-full h-full object-cover" alt={`معاينة ${index + 1}`} />
+                            {previews.length > 0 ? previews.map((src, index) => {
+                                // الحصول على URL النهائي
+                                const imageUrl = getImageUrl(src);
+                                const isBlob = src.startsWith('blob:');
+                                
+                                console.log(`🖼️ صورة ${index + 1}:`, { src, imageUrl, isBlob });
+                                
+                                return (
+                                <div key={`preview-${index}-${cacheKey}`} className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-md border-2 border-gray-100 bg-gray-100">
+                                    {!imageErrors[index] ? (
+                                        <img 
+                                            src={imageUrl} 
+                                            className="w-full h-full object-cover" 
+                                            alt={`معاينة ${index + 1}`}
+                                            loading="eager"
+                                            onLoad={() => console.log(`✅ تم تحميل الصورة ${index + 1}`)}
+                                            onError={(e) => {
+                                                console.error(`❌ خطأ في تحميل الصورة ${index + 1}:`, e);
+                                                setImageErrors(prev => ({...prev, [index]: true}));
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                                            <div className="text-center">
+                                                <ImageIcon className="mx-auto text-gray-400 mb-2" size={32} />
+                                                <p className="text-xs text-gray-500">صورة غير متاحة</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+                                );
+                            }) : (
+                                <div className="col-span-full text-center py-12">
+                                    <ImageIcon className="mx-auto text-gray-300 mb-4" size={48} />
+                                    <p className="text-gray-500">لا توجد صور للمعاينة</p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex bg-gray-100 p-1.5 rounded-2xl mb-4">
@@ -423,7 +626,7 @@ export default function EditProductPage() {
                             </button>
                         </div>
 
-                        {uploadMethod === 'file' ? (
+                        {uploadMethod === 'file' && (
                             <input 
                                 type="file" 
                                 multiple 
@@ -431,10 +634,12 @@ export default function EditProductPage() {
                                 className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 hover:border-indigo-400 transition-colors cursor-pointer" 
                                 onChange={handleFileChange} 
                             />
-                        ) : (
+                        )}
+                        
+                        {uploadMethod === 'url' && (
                             <input 
                                 type="text" 
-                                value={formData.image} 
+                                value={formData.image ?? ''} 
                                 onChange={(e) => setFormData({...formData, image: e.target.value})} 
                                 className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-mono text-sm" 
                                 dir="ltr" 
@@ -458,7 +663,7 @@ export default function EditProductPage() {
                                     step="0.1"
                                     min="0"
                                     max="5"
-                                    value={formData.rating} 
+                                    value={formData.rating ?? 0} 
                                     onChange={(e) => setFormData({...formData, rating: parseFloat(e.target.value) || 0})} 
                                     className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-bold" 
                                     placeholder="4.5"
@@ -469,7 +674,7 @@ export default function EditProductPage() {
                                 <label className="text-sm font-bold text-gray-700">عدد التقييمات</label>
                                 <input 
                                     type="number" 
-                                    value={formData.numReviews} 
+                                    value={formData.numReviews ?? 0} 
                                     onChange={(e) => setFormData({...formData, numReviews: parseInt(e.target.value) || 0})} 
                                     className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-bold" 
                                     placeholder="150"
@@ -495,31 +700,26 @@ export default function EditProductPage() {
 
                     {/* أزرار الحفظ */}
                     <div className="flex gap-4">
-                        <button 
+                        <Button 
                             type="submit" 
                             disabled={updateLoading} 
-                            className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-5 rounded-2xl font-black text-xl hover:shadow-2xl hover:shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                            variant="success"
+                            size="lg"
+                            loading={updateLoading}
+                            className="flex-1"
                         >
-                            {updateLoading ? (
-                                <>
-                                    <Loader2 className="animate-spin" size={24} />
-                                    جاري الحفظ...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={24} />
-                                    حفظ التعديلات
-                                </>
-                            )}
-                        </button>
+                            <Save size={24} />
+                            حفظ التعديلات
+                        </Button>
                         
-                        <button 
+                        <Button 
                             type="button"
+                            variant="secondary"
+                            size="lg"
                             onClick={() => router.push('/admin/products')}
-                            className="px-8 py-5 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-colors"
                         >
                             إلغاء
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

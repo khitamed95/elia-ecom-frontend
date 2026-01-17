@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/axios';
 import { Loader2, ShoppingBag, Ruler, Heart, ArrowRight } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getImageUrl } from '@/lib/imageUtil';
 
 export default function ProductDetailsPage() {
     const { id } = useParams();
@@ -15,17 +16,10 @@ export default function ProductDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('');
 
-    const getImageUrl = (path) => {
-        if (!path) return '/placeholder.png';
-        if (path.startsWith('http')) return path;
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `${process.env.NEXT_PUBLIC_API_URL}${cleanPath}`;
-    };
-
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const { data } = await api.get(`/products/${id}`);
+                const { data } = await api.get(`/api/products/${id}`);
                 setProduct(data);
                 setLoading(false);
             } catch (err) {
@@ -45,7 +39,7 @@ export default function ProductDetailsPage() {
     return (
         <div className="min-h-screen bg-white p-6 md:p-12 font-sans" dir="rtl">
             <div className="max-w-7xl mx-auto">
-                <button onClick={() => router.back()} className="mb-10 flex items-center gap-2 text-gray-500 font-bold hover:text-black">
+                <button onClick={() => router.back()} className="mb-10 flex items-center gap-2 text-gray-500 font-bold hover:text-black hover:scale-105 transition-all">
                     <ArrowRight size={20} /> العودة للمتجر
                 </button>
 
@@ -56,7 +50,7 @@ export default function ProductDetailsPage() {
                             alt={product.name}
                             loading="eager"
                             className="w-full h-auto object-cover aspect-[3/4]"
-                            onError={e => e.target.src = '/placeholder.png'}
+                            onError={e => e.target.src = '/placeholder.svg'}
                         />
                     </div>
 

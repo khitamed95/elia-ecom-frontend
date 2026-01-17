@@ -51,7 +51,7 @@ export default function TokenDebugPage() {
         try {
             console.log('🌐 محاولة استدعاء API محمي...');
             // جرب أي endpoint محمي - هنا نحاول جلب بيانات المستخدم
-            const response = await api.get('/users/profile');
+            const response = await api.get('/api/users/profile');
             console.log('✅ استدعاء API نجح:', response.data);
             toast.success('نجح استدعاء API المحمي!');
         } catch (error) {

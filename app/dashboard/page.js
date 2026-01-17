@@ -21,19 +21,49 @@ export default function DashboardPage() {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    const [cacheKey] = useState(Date.now());
+
+    const getAvatarUrl = (path) => {
+        if (!path) return '/placeholder.svg';
+        if (path.startsWith('http')) return path;
+        if (path.startsWith('blob:')) return path;
+        const BASE = API_URL || 'http://192.168.1.158:5000/api';
+        let finalUrl = '';
+        if (path.startsWith('/')) {
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                finalUrl = `${baseUrl}${path}`;
+            } else {
+                finalUrl = `${BASE}${path}`;
+            }
+        } else {
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${path}`;
+        }
+        const sep = finalUrl.includes('?') ? '&' : '?';
+        return `${finalUrl}${sep}v=${cacheKey}`;
+    };
 
     useEffect(() => {
+        // جلب بيانات المستخدم من localStorage
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo) {
+            try {
+                setUser(JSON.parse(userInfo));
+            } catch (err) {
+                console.error('خطأ في قراءة بيانات المستخدم:', err);
+            }
+        }
+
         const fetchDashboardData = async () => {
             try {
-                // جلب بيانات المستخدم والطلبات في آن واحد لسرعة التحميل
-                const [ordersRes, userRes] = await Promise.all([
-                    api.get('/orders/myorders'),
-                    api.get('/users/profile')
-                ]);
+                // جلب الطلبات فقط
+                const ordersRes = await api.get('/orders/myorders');
                 setOrders(ordersRes.data);
-                setUser(userRes.data);
             } catch (error) {
-                console.error("فشل في جلب بيانات الداشبورد");
+                console.error("فشل في جلب بيانات الطلبات:", error);
+                // إذا فشل جلب الطلبات، نعرض قائمة فارغة
+                setOrders([]);
             } finally {
                 setLoading(false);
             }
@@ -76,9 +106,10 @@ export default function DashboardPage() {
                             <div className="w-20 h-20 rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-200">
                                 {user?.avatar ? (
                                     <img 
-                                        src={user.avatar.startsWith('http') ? user.avatar : `${API_URL}${user.avatar}`} 
+                                        src={getAvatarUrl(user.avatar)} 
                                         className="w-full h-full object-cover" 
-                                        alt="Profile" 
+                                        alt="Profile"
+                                        onError={(e) => { e.target.src = '/placeholder.svg'; }}
                                     />
                                 ) : (
                                     <User className="w-full h-full p-4 text-gray-400" />

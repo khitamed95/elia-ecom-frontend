@@ -1,11 +1,10 @@
 'use client';
 import React, { useState } from 'react';
-import PhoneInput from 'react-phone-input-2';
-import 'react-phone-input-2/lib/style.css';
 import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { UserPlus, User, Mail, Lock, Loader2 } from 'lucide-react';
+import Button from '@/components/Button';
+import { UserPlus, User, Mail, Lock, Phone } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 
 export default function RegisterPage() {
@@ -20,85 +19,98 @@ export default function RegisterPage() {
     const googleRegister = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             try {
-                setLoading(true);
                 const { data } = await api.post('/users/auth/google', {
                     accessToken: tokenResponse.access_token
                 });
                 
-                // حفظ في localStorage
                 localStorage.setItem('userInfo', JSON.stringify(data));
-                
-                // حفظ في Cookies للـ Server Components
-                const token = data.accessToken || data.token;
-                document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
-                document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
-                
                 window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
-                toast.success(`أهلاً بك، ${data.name}`);
-                router.replace('/');
+                toast.success(`مرحباً ${data.name}`);
+                setTimeout(() => {
+                    router.replace('/');
+                }, 100);
             } catch (error) {
                 toast.error('فشل التسجيل عبر Google');
-            } finally {
-                setLoading(false);
             }
+        },
+        onError: () => {
+            toast.error('فشل التسجيل عبر Google');
         }
     });
 
     const validatePassword = (pwd) => {
-        const rules = [
-            { regex: /.{8,}/, message: '8 أحرف' },
-            { regex: /[A-Z]/, message: 'حرف كبير' },
-            { regex: /[0-9]/, message: 'رقم' },
-        ];
-        const failed = rules.find(r => !r.regex.test(pwd));
-        return failed ? `تحتاج إلى: ${failed.message}` : '';
+        const minLength = /.{8,}/;
+        const upper = /[A-Z]/;
+        const lower = /[a-z]/;
+        const number = /[0-9]/;
+        const symbol = /[^A-Za-z0-9]/;
+        if (!minLength.test(pwd)) return 'يجب أن تكون 8 أحرف على الأقل';
+        if (!upper.test(pwd)) return 'يجب أن تحتوي على حرف كبير واحد على الأقل';
+        if (!lower.test(pwd)) return 'يجب أن تحتوي على حرف صغير واحد على الأقل';
+        if (!number.test(pwd)) return 'يجب أن تحتوي على رقم واحد على الأقل';
+        if (!symbol.test(pwd)) return 'يجب أن تحتوي على رمز خاص واحد على الأقل';
+        return '';
+    };
+
+    // تحقق من صيغة رقم الهاتف (+964 أو 964)
+    const validatePhone = (phoneNum) => {
+        const cleanPhone = phoneNum.replace(/\D/g, '');
+        if (!cleanPhone || cleanPhone.length < 10) {
+            return 'يرجى إدخال رقم هاتف صحيح (10 أرقام على الأقل)';
+        }
+        if (!cleanPhone.startsWith('964')) {
+            return 'يجب أن يبدأ رقم الهاتف برمز الدولة 964 (العراق)';
+        }
+        return '';
     };
 
     const submitHandler = async (e) => {
         e.preventDefault();
         const pwdErr = validatePassword(password);
-        if (pwdErr) return setPasswordError(pwdErr);
+        if (pwdErr) {
+            setPasswordError(pwdErr);
+            return;
+        }
         setPasswordError('');
-
-        if (!phone || phone.length < 10) return toast.error('رقم هاتف غير صحيح');
-
+        const phoneErr = validatePhone(phone);
+        if (phoneErr) {
+            toast.error(phoneErr);
+            return;
+        }
         setLoading(true);
         try {
-            // Use the canonical user registration endpoint
-            console.log('🔄 محاولة: POST /users/register');
-            const response = await api.post('/users/register', { name, email, phone, password });
-            const data = response.data;
-            console.log('✅ نجح الـ endpoint: /users/register', data);
+            // إرسال البيانات للخادم
+            const registerData = { name, email, password };
             
-            // حفظ في localStorage
+            // إضافة رقم الهاتف فقط إذا كان موجوداً
+            if (phone && phone.trim()) {
+                registerData.phone = phone;
+            }
+            
+            const { data } = await api.post('/api/users/register', registerData);
+            
+            // حفظ بيانات المستخدم
             localStorage.setItem('userInfo', JSON.stringify(data));
             
-            // حفظ في Cookies للـ Server Components
             const token = data.accessToken || data.token;
-            document.cookie = `accessToken=${token}; path=/; max-age=2592000; SameSite=Strict`;
-            document.cookie = `userInfo=${encodeURIComponent(JSON.stringify(data))}; path=/; max-age=2592000; SameSite=Strict`;
+            if (token) {
+                // حفظ التوكن للخادم
+                fetch('/api/auth/set-cookie', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                }).catch(err => console.error('خطأ في حفظ التوكن:', err));
+            }
             
             window.dispatchEvent(new CustomEvent('userLogin', { detail: data }));
-            toast.success('تم إنشاء الحساب بنجاح');
-            router.replace('/');
+            toast.success('تم إنشاء حسابك بنجاح');
+            setTimeout(() => {
+                router.replace('/');
+            }, 100);
         } catch (err) {
-            console.error('❌ تفاصيل الخطأ:', {
-                message: err.message,
-                status: err.response?.status,
-                statusText: err.response?.statusText,
-                data: err.response?.data,
-                url: err.config?.url,
-                method: err.config?.method
-            });
-            let errorMessage = 'فشل التسجيل';
-            if (err.response?.status === 0 || err.message === 'Network Error') {
-                errorMessage = 'لا يمكن الاتصال بالسيرفر. تأكد من تشغيل Backend';
-            } else if (err.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            } else if (err.response?.status === 404) {
-                errorMessage = 'المسار غير موجود في السيرفر';
-            }
-            toast.error(errorMessage);
+            const errorMsg = err.response?.data?.message || err.response?.data?.error || 'فشل في إنشاء الحساب';
+            toast.error(errorMsg);
+            console.error('خطأ في التسجيل:', err.response?.data);
         } finally {
             setLoading(false);
         }
@@ -106,58 +118,95 @@ export default function RegisterPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-6" dir="rtl">
-            <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-10 border border-gray-100 animate-in fade-in duration-500">
+            <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl p-10 border border-gray-100">
                 <div className="text-center mb-10">
-                    <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-indigo-100">
+                    <div className="bg-green-500 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-green-100">
                         <UserPlus size={32} />
                     </div>
-                    <h1 className="text-3xl font-black text-gray-800 tracking-tighter">انضم إلينا</h1>
+                    <h1 className="text-3xl font-black text-gray-800">حساب جديد</h1>
+                    <p className="text-gray-400 mt-2">انضم لمجتمع ELIA الحصري</p>
                 </div>
 
-                <form onSubmit={submitHandler} className="space-y-4">
-                    <div className="relative group">
-                        <User className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                        <input type="text" placeholder="الاسم الكامل" className="w-full pr-12 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/20 font-bold" value={name} onChange={(e)=>setName(e.target.value)} required />
+                <form onSubmit={submitHandler} className="space-y-5">
+                    <div className="relative border-b-2 border-gray-50 pb-2">
+                        <User className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="text" placeholder="الاسم الكامل" className="w-full pr-12 py-3 outline-none" value={name} onChange={(e)=>setName(e.target.value)} required />
                     </div>
-                    <div className="relative group">
-                        <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                        <input type="email" placeholder="البريد الإلكتروني" className="w-full pr-12 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/20 font-bold" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+                    <div className="relative border-b-2 border-gray-50 pb-2">
+                        <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="email" placeholder="البريد الإلكتروني" className="w-full pr-12 py-3 outline-none" value={email} onChange={(e)=>setEmail(e.target.value)} required />
                     </div>
-                    <div className="relative" dir="ltr">
-                        <PhoneInput
-                            country={'iq'}
-                            value={phone}
-                            onChange={(value) => setPhone(value)}
-                            inputStyle={{ width: '100%', height: '60px', borderRadius: '1rem', backgroundColor: '#f9fafb', border: 'none', fontWeight: 'bold' }}
-                            buttonStyle={{ borderRadius: '1rem 0 0 1rem', border: 'none', backgroundColor: '#f9fafb' }}
+                    <div className="relative border-b-2 border-gray-50 pb-2">
+                        <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input 
+                            type="tel" 
+                            placeholder="+964 أو 964 متبوعاً بالأرقام" 
+                            className="w-full pr-12 py-3 outline-none" 
+                            value={phone} 
+                            onChange={(e)=>setPhone(e.target.value)} 
+                            required 
+                            dir="ltr"
                         />
                     </div>
-                    <div className="relative group">
-                        <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                        <input type="password" placeholder="كلمة المرور" className="w-full pr-12 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/20 font-bold" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-                        {passwordError && <p className="text-[10px] text-red-500 mt-1 font-black">{passwordError}</p>}
+                    <div className="relative border-b-2 border-gray-50 pb-2">
+                        <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input 
+                            type="password" 
+                            placeholder="كلمة المرور (8+ أحرف، كابتل، سمول، رقم، رمز)" 
+                            className="w-full pr-12 py-3 outline-none" 
+                            value={password} 
+                            onChange={(e)=>setPassword(e.target.value)} 
+                            required 
+                        />
+                        {passwordError && <div className="text-xs text-red-600 mt-1 font-bold">{passwordError}</div>}
                     </div>
-
-                    <button disabled={loading} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black mt-6 hover:bg-black shadow-xl transition-all flex items-center justify-center gap-3">
-                        {loading ? <Loader2 className="animate-spin" /> : 'إنشاء حساب جديد'}
-                    </button>
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 mb-2">
+                        <p className="text-xs text-blue-800 font-bold mb-1">شروط كلمة المرور:</p>
+                        <ul className="text-xs text-blue-700 space-y-1 mr-4 list-disc">
+                            <li>8 أحرف على الأقل</li>
+                            <li>حرف كبير (A-Z)</li>
+                            <li>حرف صغير (a-z)</li>
+                            <li>رقم (0-9)</li>
+                            <li>رمز خاص (!@#$...)</li>
+                        </ul>
+                    </div>
+                    <Button
+                        disabled={loading}
+                        variant="success"
+                        size="lg"
+                        type="submit"
+                        loading={loading}
+                        className="w-full mt-6"
+                    >
+                        إنشاء الحساب
+                    </Button>
                 </form>
 
-                <div className="flex items-center gap-4 my-8">
-                    <div className="flex-1 h-px bg-gray-100"></div>
-                    <span className="text-gray-300 text-xs font-bold">أو</span>
-                    <div className="flex-1 h-px bg-gray-100"></div>
+                {/* خط فاصل */}
+                <div className="flex items-center gap-4 my-6">
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                    <span className="text-gray-400 text-sm">أو</span>
+                    <div className="flex-1 h-px bg-gray-200"></div>
                 </div>
 
-                <button onClick={() => googleRegister()} className="w-full bg-white border border-gray-200 text-gray-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-3">
-                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="google" />
-                    عبر جوجل
-                </button>
+                {/* زر Google */}
+                <Button 
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => googleRegister()}
+                    className="w-full"
+                >
+                    <svg className="w-6 h-6" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    التسجيل عبر Google
+                </Button>
 
-                <p className="text-center mt-10 text-gray-400 text-sm">
-                    لديك حساب؟ 
-                    <button onClick={() => router.push('/login')} className="text-indigo-600 font-black mr-2 hover:underline">سجل دخولك</button>
-                </p>
+                <p className="text-center mt-8 text-gray-500">لديك حساب بالفعل؟ <span className="text-green-600 font-bold cursor-pointer hover:underline" onClick={() => router.push('/login')}>سجل دخولك</span></p>
             </div>
         </div>
     );

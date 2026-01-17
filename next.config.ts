@@ -2,14 +2,36 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  productionBrowserSourceMaps: false,
   reactCompiler: true,
-  // Dev cross-origin warnings will be ignored; allowedDevOrigins not supported here
   
+  // تعطيل source maps في development لتفادي الأخطاء
+  devIndicators: {
+    position: 'bottom-right',
+  },
+  
+  // إعدادات Turbopack للـ development
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '5mb', // زيادة حد الـ body size إلى 5MB
+    },
+  },
+
+  // السماح بطلبات Cross-Origin من شبكة محلية
+  allowedDevOrigins: ['192.168.1.158'],
+
   images: {
+    unoptimized: true, // تعطيل تحسين الصور للسماح بـ IPs خاصة
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: '192.168.1.158',
+        hostname: 'localhost',
+        port: '5000',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
         port: '5000',
         pathname: '/uploads/**',
       },
@@ -18,17 +40,24 @@ const nextConfig: NextConfig = {
         hostname: 'images.unsplash.com',
         pathname: '/**',
       },
-      // Add your production backend domain
       {
         protocol: 'https',
         hostname: 'elia-ecom-backend.onrender.com',
         pathname: '/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'th.bing.com',
+        pathname: '/**',
+      },
     ],
   },
-  // أي إعدادات أخرى لديك اتركها كما هي
 
-  // إصلاح Google OAuth - COOP Policy
   async headers() {
     return [
       {

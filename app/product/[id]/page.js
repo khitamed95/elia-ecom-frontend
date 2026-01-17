@@ -25,6 +25,7 @@ export default function ProductDetailsPage() {
     const [isShoe, setIsShoe] = useState(false);
     const [isKidsShoe, setIsKidsShoe] = useState(false);
     const [liked, setLiked] = useState(false);
+    const [cacheKey, setCacheKey] = useState(Date.now());
 
     const checkIsShoe = (product) => {
         if (!product) return false;
@@ -39,11 +40,12 @@ export default function ProductDetailsPage() {
         return (fullText.includes('أطفال') || fullText.includes('kids')) && checkIsShoe(product);
     }
 
-    // Unified getImageUrl utility
+    // Unified getImageUrl utility مع مفتاح كاش لتجنب الصور القديمة
     function getImageUrl(img) {
         if (!img || img === 'undefined' || img === 'null') return '/placeholder.svg';
         
-        const BASE = process.env.NEXT_PUBLIC_API_URL;
+        const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000/api';
+        let finalUrl = '';
         
         // معالجة روابط تحتوي على undefined
         if (typeof img === 'string' && img.includes('/uploads/undefined')) {
@@ -54,20 +56,38 @@ export default function ProductDetailsPage() {
         if (typeof img === 'string' && img.includes('\\')) {
             const filename = img.split(/[\\\/]/).pop();
             if (!filename || filename === 'undefined') return '/placeholder.svg';
-            return `${BASE}/uploads/${filename}`;
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${filename}`;
+        } else if (typeof img === 'string' && img.startsWith('http') && !img.includes('undefined')) {
+            finalUrl = img;
+        } else if (typeof img === 'string' && img.startsWith('/')) {
+            if (img.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                finalUrl = `${baseUrl}${img}`;
+            } else {
+                finalUrl = `${BASE}${img}`;
+            }
+        } else if (typeof img === 'object' && img.url) {
+            return getImageUrl(img.url);
+        } else if (typeof img === 'string') {
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${img}`;
         }
-        
-        if (typeof img === 'string' && img.startsWith('http') && !img.includes('undefined')) return img;
-        if (typeof img === 'string' && img.startsWith('/') && !img.includes('undefined')) return img;
-        if (typeof img === 'object' && img.url) return getImageUrl(img.url);
-        
-        return '/placeholder.svg';
+
+        if (!finalUrl) return '/placeholder.svg';
+
+        // إضافة مفتاح كاش لتجنب الصور القديمة
+        if (!finalUrl.startsWith('blob:') && !finalUrl.startsWith('data:')) {
+            const sep = finalUrl.includes('?') ? '&' : '?';
+            return `${finalUrl}${sep}v=${cacheKey}`;
+        }
+        return finalUrl;
     }
 
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const { data } = await api.get(`/products/${id}`);
+                const { data } = await api.get(`/api/products/${id}`);
                 setProduct(data);
                 setIsShoe(checkIsShoe(data));
                 setIsKidsShoe(checkIsKidsShoe(data));
@@ -88,15 +108,29 @@ export default function ProductDetailsPage() {
                 // Robust image extraction
                 let images = [];
                 if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-                    images = data.images.map(getImageUrl);
+                    images = data.images;
                 }
                 if (data.image) {
-                    images.unshift(getImageUrl(data.image));
+                    images.unshift(data.image);
                 }
                 if (images.length === 0) {
                     images = ['/placeholder.svg'];
                 }
-                setAllImages(images);
+                
+                // بناء cache key من بيانات المنتج
+                const productTimestamp = (() => {
+                    const stamp = data?.updatedAt || data?.updated_at || data?.createdAt || data?.id;
+                    if (!stamp) return undefined;
+                    if (typeof stamp === 'string') {
+                        const parsed = new Date(stamp).getTime();
+                        return Number.isNaN(parsed) ? stamp : parsed;
+                    }
+                    return stamp;
+                })();
+                
+                const resolvedImages = images.map(img => getImageUrl(img, { cacheKey: productTimestamp }));
+                setAllImages(resolvedImages);
+                setCacheKey(Date.now());
                 setLoading(false);
             } catch (err) {
                 toast.error('لم يتم العثور على المنتج');

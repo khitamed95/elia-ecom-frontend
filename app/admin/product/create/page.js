@@ -6,9 +6,10 @@ import React, { useState } from 'react';
 import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import Button from '@/components/Button';
 import { 
     PlusCircle, Image as ImageIcon, Link as LinkIcon, 
-    Save, ArrowRight, Loader2, X, Tag, Hash, 
+    Save, ArrowRight, X, Tag, Hash, 
     Layers, AlignLeft 
 } from 'lucide-react';
 
@@ -30,11 +31,46 @@ const SIZE_DATA = {
 // دالة العرض الموحدة (تدعم الروابط، الصور المرفوعة، ومعاينة المتصفح blob)
 const getImageUrl = (path) => {
     if (!path) return "/placeholder.png";
-    // إضافة blob: لضمان ظهور المعاينة عند اختيار ملف من الجهاز
-    if (path.startsWith('http') || path.startsWith('data:') || path.startsWith('blob:')) {
+    
+    const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.158:5000/api';
+    
+    // blob URLs - أرجعها كما هي
+    if (path.startsWith('blob:')) {
         return path;
     }
-    return `${process.env.NEXT_PUBLIC_API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    
+    // روابط خارجية وdata URLs
+    if (path.startsWith('http') || path.startsWith('data:')) {
+        return path;
+    }
+    
+    // مسارات نسبية
+    if (path.startsWith('/')) {
+        // إذا كان المسار يحتوي على /uploads
+        if (path.includes('/uploads')) {
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            const finalUrl = `${baseUrl}${path}`;
+            // استخراج timestamp من اسم الملف
+            const filename = finalUrl.split('/').pop();
+            const timestampMatch = filename?.match(/(\d{10,13})/);
+            if (timestampMatch && timestampMatch[1]) {
+                return `${finalUrl}?v=${timestampMatch[1]}`;
+            }
+            return finalUrl;
+        }
+        return `${BASE}${path}`;
+    }
+    
+    // مسارات أخرى
+    const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+    const finalUrl = `${baseUrl}/uploads/${path}`;
+    // استخراج timestamp من اسم الملف
+    const filename = finalUrl.split('/').pop();
+    const timestampMatch = filename?.match(/(\d{10,13})/);
+    if (timestampMatch && timestampMatch[1]) {
+        return `${finalUrl}?v=${timestampMatch[1]}`;
+    }
+    return finalUrl;
 };
 
 export default function CreateProductPage() {
@@ -43,6 +79,7 @@ export default function CreateProductPage() {
     const [uploadMethod, setUploadMethod] = useState('file'); 
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
+    const [cacheKey, setCacheKey] = useState(Date.now());
     
     const [formData, setFormData] = useState({
         name: '', price: '', oldPrice: '', brand: 'ELIA',
@@ -86,9 +123,29 @@ export default function CreateProductPage() {
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        setSelectedFiles(prev => [...prev, ...files]);
-        const newPreviews = files.map(file => URL.createObjectURL(file));
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB per file
+        
+        const validFiles = files.filter(file => {
+            if (file.size > MAX_SIZE) {
+                toast.warning(`الملف ${file.name} يتجاوز 5MB - تم تجاهله`);
+                return false;
+            }
+            if (!file.type.startsWith('image/')) {
+                toast.warning(`${file.name} ليس صورة - تم تجاهله`);
+                return false;
+            }
+            return true;
+        });
+        
+        if (validFiles.length === 0) {
+            toast.error('لم يتم قبول أي ملفات صحيحة');
+            return;
+        }
+        
+        setSelectedFiles(prev => [...prev, ...validFiles]);
+        const newPreviews = validFiles.map(file => URL.createObjectURL(file));
         setPreviews(prev => [...prev, ...newPreviews]);
+        setCacheKey(Date.now()); // تحديث مفتاح الكاش لإعادة تحميل المعاينة
     };
 
     const removeFile = (index) => {
@@ -122,6 +179,10 @@ export default function CreateProductPage() {
         try {
             await api.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
             toast.success('تم نشر المنتج بنجاح ✨');
+            
+            // أطلق حدث لتحديث الصفحة الرئيسية والصفحات الأخرى
+            window.dispatchEvent(new Event('productsUpdated'));
+            
             router.push('/admin/products');
         } catch (err) {
             toast.error(err.response?.data?.message || 'فشل في الحفظ');
@@ -186,20 +247,33 @@ export default function CreateProductPage() {
                                 <button type="button" className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${uploadMethod === 'url' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500'}`} onClick={() => setUploadMethod('url')}><LinkIcon size={18} /> رابط خارجي</button>
                             </div>
 
-                            {uploadMethod === 'file' ? (
+                            {uploadMethod === 'file' && (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {previews.map((src, index) => (
+                                    {previews.map((src, index) => {
+                                        // إذا كانت الصورة blob (مرفوعة من الجهاز)، استخدمها مباشرة
+                                        const imageUrl = src.startsWith('blob:') || src.startsWith('data:') 
+                                            ? src 
+                                            : `${getImageUrl(src)}?v=${Date.now()}`;
+                                        
+                                        return (
                                         <div key={index} className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-md group">
-                                            <img src={getImageUrl(src)} className="w-full h-full object-cover" alt="معاينة" />
+                                            <img 
+                                                src={imageUrl} 
+                                                className="w-full h-full object-cover" 
+                                                alt="معاينة" 
+                                            />
                                             <button type="button" onClick={() => removeFile(index)} className="absolute top-2 left-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                     <label className="aspect-[3/4] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all">
                                         <ImageIcon className="text-gray-300" size={30} />
                                         <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} />
                                     </label>
                                 </div>
-                            ) : (
+                            )}
+                            
+                            {uploadMethod === 'url' && (
                                 <input type="text" placeholder="https://example.com/image.jpg" className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-left outline-none border-2 border-transparent focus:border-indigo-500" dir="ltr" onChange={(e) => setFormData({...formData, imageUrl: e.target.value})} />
                             )}
                         </div>
@@ -218,10 +292,17 @@ export default function CreateProductPage() {
                             <textarea required className="w-full p-4 bg-gray-50 rounded-2xl font-bold h-32 outline-none focus:ring-2 focus:ring-indigo-500" onChange={(e) => setFormData({...formData, description: e.target.value})}></textarea>
                         </div>
 
-                        <button disabled={loading} className="md:col-span-2 bg-indigo-600 text-white py-5 rounded-[2rem] font-black text-xl hover:bg-black transition-all flex items-center justify-center gap-3 mt-4 shadow-lg shadow-indigo-100">
-                            {loading ? <Loader2 className="animate-spin" /> : <Save size={24} />}
+                        <Button 
+                            disabled={loading} 
+                            variant="success"
+                            size="lg"
+                            loading={loading}
+                            className="md:col-span-2 mt-4"
+                            type="submit"
+                        >
+                            <Save size={24} />
                             نشر المنتج الآن
-                        </button>
+                        </Button>
                     </form>
                 </div>
             </div>

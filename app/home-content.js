@@ -2,9 +2,21 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '@/lib/axios';
 import Link from 'next/link';
-import { ShoppingBag, ArrowLeft, Star, MousePointer2, Sparkles, TrendingUp, Package, Zap, Shield, Truck } from 'lucide-react';
+import Button from '@/components/Button';
+import { ShoppingCart, ArrowLeft, Star, Sparkles, TrendingUp, Package, Zap, Shield, Truck, Plus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { getImageUrl } from '@/lib/imageUtil';
+
+// دالة للحصول على timestamp للصور من localStorage
+function getImageTimestamp(productId) {
+    if (typeof window === 'undefined') return null;
+    try {
+        const stored = localStorage.getItem(`img_ts_${productId}`);
+        return stored || null;
+    } catch (e) {
+        return null;
+    }
+}
 
 export function HomePageContent() {
     // تحديد الفصل الحالي تلقائياً
@@ -23,31 +35,77 @@ export function HomePageContent() {
     const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('الكل');
+    const [refreshKey, setRefreshKey] = useState(Date.now());
 
     const searchQuery = (searchParams.get('search') || '').trim();
     const isSearching = searchQuery.length > 0;
 
+    const fetchProducts = async () => {
+        try {
+            const timestamp = Date.now();
+            const { data } = await api.get('/api/products', { params: { _t: timestamp } });
+            console.log('📦 Products fetched:', data.slice(0, 3).map(p => ({ name: p.name, category: p.category })));
+            
+            // حفظ timestamps للصور في localStorage لضمان تحديثها
+            if (typeof window !== 'undefined') {
+                data.forEach(product => {
+                    // استخدم updatedAt من المنتج أو الوقت الحالي
+                    const productTimestamp = product.updatedAt ? new Date(product.updatedAt).getTime() : timestamp;
+                    localStorage.setItem(`img_ts_${product._id}`, productTimestamp.toString());
+                });
+            }
+            
+            setAllProducts(data);
+            
+            // تطبيق البحث إذا كان موجوداً
+            if (isSearching) {
+                const filtered = data.filter(p => 
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    p.category?.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                setProducts(filtered);
+            } else {
+                setProducts(data);
+            }
+        } catch (error) { 
+             // Silently ignore connection errors (backend not running)
+            console.error('Error fetching products:', error);
+            setProducts([]);
+        } finally { 
+            setLoading(false); 
+        }
+    };
+
     useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const { data } = await api.get('/api/products');
-                setAllProducts(data);
-                
-                // تطبيق البحث إذا كان موجوداً
-                if (isSearching) {
-                    const filtered = data.filter(p => 
-                        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        p.category?.toLowerCase().includes(searchQuery.toLowerCase())
-                    );
-                    setProducts(filtered);
-                } else {
-                    setProducts(data);
-                }
-            } catch (error) { console.error(error); } finally { setLoading(false); }
-        };
         fetchProducts();
-    }, [searchParams, isSearching, searchQuery]);
+    }, [searchQuery, isSearching]);
+
+    // استمع للأحداث والعودة للصفحة الرئيسية
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // الصفحة أصبحت مرئية - أعد جلب البيانات بـ cache buster
+                setRefreshKey(Date.now());
+                fetchProducts();
+            }
+        };
+
+        const handleProductsUpdated = () => {
+            // استمع لحدث تحديث المنتجات من صفحات التعديل - أعد الجلب فوراً
+            console.log('🔄 تم استقبال حدث تحديث المنتجات - جاري إعادة تحميل البيانات');
+            setRefreshKey(Date.now()); // تحديث مفتاح كسر الكاش لإعادة تحميل الصور
+            fetchProducts();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('productsUpdated', handleProductsUpdated);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('productsUpdated', handleProductsUpdated);
+        };
+    }, []);
 
     useEffect(() => {
         if (isSearching && productsRef.current) {
@@ -57,13 +115,33 @@ export function HomePageContent() {
 
     // فلترة المنتجات حسب التصنيف
     const filterByCategory = (category) => {
+        console.log('🔍 Filtering by category:', category);
         setSelectedCategory(category);
         if (category === 'الكل') {
             setProducts(allProducts);
         } else {
-            const filtered = allProducts.filter(p => 
-                p.category && p.category.toLowerCase().includes(category.toLowerCase())
-            );
+            const filtered = allProducts.filter(p => {
+                if (!p.category) return false;
+                const catStr = String(p.category).toLowerCase();
+                // البحث في category عن كلمة مطابقة (مثل "نسائي" في "ملابس نسائي")
+                const searchTerm = category.toLowerCase();
+                let matches = false;
+                if (searchTerm === 'نساء') {
+                    // ابحث عن "نسائي" بدلاً من "نساء"
+                    matches = catStr.includes('نسائي');
+                } else if (searchTerm === 'رجال') {
+                    // ابحث عن "رجالي" بدلاً من "رجال"
+                    matches = catStr.includes('رجالي');
+                } else if (searchTerm === 'أطفال') {
+                    matches = catStr.includes('أطفال');
+                } else if (searchTerm === 'إكسسوارات') {
+                    matches = catStr.includes('إكسسوارات');
+                } else {
+                    matches = catStr.includes(searchTerm);
+                }
+                return matches;
+            });
+            console.log(`✅ Found ${filtered.length} products for category "${category}"`, filtered.map(p => ({ name: p.name, cat: p.category })));
             setProducts(filtered);
         }
     };
@@ -116,18 +194,26 @@ export function HomePageContent() {
                     </p>
                     
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button 
+                        <Button 
                             onClick={scrollToProducts}
-                            className="inline-flex items-center gap-2 bg-white text-indigo-600 px-8 py-4 rounded-full font-bold transition-all duration-300 shadow-2xl hover:bg-indigo-700 hover:text-white"
+                            variant="success"
+                            size="lg"
+                            className="shadow-2xl border-0"
                         >
-                            <ShoppingBag size={20} />
+                            <ShoppingCart size={20} />
                             تسوق الآن
-                        </button>
+                        </Button>
                         <Link 
                             href="#features"
-                            className="inline-flex items-center gap-2 bg-white/20 text-white px-8 py-4 rounded-full font-bold transition-all duration-300 border border-white/40 hover:bg-white/30"
+                            className="w-full sm:w-auto"
                         >
-                            اكتشف المزايا
+                            <Button 
+                                variant="outline"
+                                size="lg"
+                                className="w-full"
+                            >
+                                اكتشف المزايا
+                            </Button>
                         </Link>
                     </div>
                 </div>
@@ -148,16 +234,16 @@ export function HomePageContent() {
                         <div>
                             <h2 className="text-5xl font-black mb-12 text-center">المنتجات المتاحة</h2>
                             
-                            {/* فلاتر التصنيفات */}
+                            {/* فلاتر التصنيفات بأزرار جديدة */}
                             <div className="flex flex-wrap gap-3 justify-center mb-12">
                                 {['الكل', 'نساء', 'رجال', 'أطفال', 'إكسسوارات'].map(cat => (
                                     <button
                                         key={cat}
                                         onClick={() => filterByCategory(cat)}
-                                        className={`px-6 py-3 rounded-full font-semibold transition-all ${
+                                        className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                                             selectedCategory === cat 
-                                            ? 'bg-indigo-600 text-white shadow-lg' 
-                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-200 scale-105' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                                         }`}
                                     >
                                         {cat}
@@ -177,36 +263,67 @@ export function HomePageContent() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {products.map(product => (
-                                <Link key={product.id} href={`/product/${product.id}`}>
-                                    <div className="group cursor-pointer">
-                                        <div className="relative overflow-hidden rounded-lg bg-gray-200 h-64 mb-4">
-                                            <img 
-                                                src={getImageUrl(product.image)} 
-                                                alt={product.name}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                            />
-                                            <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                                {product.discount}%
-                                            </div>
+                            {products.map(product => {
+                                // بناء cache key من timestamp المنتج والـ refreshKey
+                                const productTimestamp = (() => {
+                                    const stamp = product?.updatedAt || product?.updated_at || product?.createdAt || product?.id;
+                                    if (!stamp) return undefined;
+                                    if (typeof stamp === 'string') {
+                                        const parsed = new Date(stamp).getTime();
+                                        return Number.isNaN(parsed) ? stamp : parsed;
+                                    }
+                                    return stamp;
+                                })();
+                                // استخدم refreshKey كـ fallback لضمان تحديث الصور بعد التعديل
+                                const cacheKey = productTimestamp || refreshKey;
+                                return (
+                                <div key={product.id} className="group">
+                                    <div className="relative overflow-hidden rounded-2xl bg-gray-200 h-64 mb-4 shadow-lg hover:shadow-2xl transition-all duration-300">
+                                        <img 
+                                            src={getImageUrl(product.image, { cacheKey })} 
+                                            alt={product.name}
+                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                        />
+                                        <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                                            {product.discount}%
                                         </div>
-                                        <h3 className="font-extrabold text-2xl md:text-3xl tracking-tight mb-2">{product.name}</h3>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex gap-2">
-                                                <span className="font-bold text-indigo-600">${product.price}</span>
-                                                {product.originalPrice && (
-                                                    <span className="line-through text-gray-400">${product.originalPrice}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-1">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} size={16} fill={i < product.rating ? '#fbbf24' : '#e5e7eb'} />
-                                                ))}
-                                            </div>
+                                        
+                                        {/* أضف إلى السلة - يظهر عند hover */}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                                            <Link href={`/product/${product.id}`} className="w-full">
+                                                <Button 
+                                                    variant="success" 
+                                                    size="lg" 
+                                                    className="w-full"
+                                                >
+                                                    <Plus size={24} />
+                                                    أضف إلى السلة
+                                                </Button>
+                                            </Link>
                                         </div>
                                     </div>
-                                </Link>
-                            ))}
+                                    
+                                    <Link href={`/product/${product.id}`}>
+                                        <div className="cursor-pointer hover:text-indigo-600 transition-colors">
+                                            <h3 className="font-extrabold text-lg md:text-xl tracking-tight mb-2 line-clamp-2">{product.name}</h3>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex gap-2">
+                                                    <span className="font-bold text-indigo-600 text-lg">{product.price} د.ع</span>
+                                                    {product.originalPrice && (
+                                                        <span className="line-through text-gray-400 text-sm">{product.originalPrice} د.ع</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <Star key={i} size={14} fill={i < Math.floor(product.rating || 0) ? '#fbbf24' : '#e5e7eb'} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -254,7 +371,7 @@ export function HomePageContent() {
                             <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/contact" className="hover:text-white transition-colors">اتصل بنا</Link></li>
                                 <li><Link href="/faq" className="hover:text-white transition-colors">الأسئلة الشائعة</Link></li>
-                                <li><Link href="/shipping" className="hover:text-white transition-colors">شروط الشحن</Link></li>
+                                <li><Link href="/shipping-terms" className="hover:text-white transition-colors">شروط الشحن</Link></li>
                             </ul>
                         </div>
                         <div>

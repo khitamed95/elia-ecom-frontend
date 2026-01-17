@@ -12,7 +12,7 @@ export const CartProvider = ({ children }) => {
 
     // دالة مساعدة لمعالجة روابط الصور داخل السلة لضمان ظهورها
     const getCartImageUrl = (path) => {
-        if (!path) return "/placeholder.png";
+        if (!path) return "/placeholder.svg";
         if (path.startsWith('http') || path.startsWith('data:')) return path;
         return `${process.env.NEXT_PUBLIC_API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
     };
@@ -84,7 +84,6 @@ export const CartProvider = ({ children }) => {
                 return false;
             }
             setCartItems(cartItems.map((x) => x.cartKey === cartKey ? { ...existItem, qty: nextQty } : x));
-            toast.info('تم تحديث الكمية في السلة');
         } else {
             setCartItems([...cartItems, {
                 id: productId,
@@ -96,14 +95,12 @@ export const CartProvider = ({ children }) => {
                 color: colorKey,
                 cartKey: cartKey
             }]);
-            toast.success('تمت الإضافة للسلة ✨');
         }
         return true;
     };
 
     const removeFromCart = (cartKey) => {
         setCartItems(cartItems.filter((x) => x.cartKey !== cartKey));
-        toast.info('تمت الإزالة من السلة');
     };
 
     const clearCart = () => {

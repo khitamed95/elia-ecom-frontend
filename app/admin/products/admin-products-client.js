@@ -13,10 +13,43 @@ export default function AdminProductsClient({ products: initialProducts }) {
     const [products, setProducts] = useState(initialProducts);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const getImageUrl = (path) => {
-        if (!path) return "https://via.placeholder.com/100";
-        if (path.startsWith('http')) return path;
-        return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const buildCacheKey = (product) => {
+        const stamp = product?.updatedAt || product?.updated_at || product?.id;
+        if (!stamp) return undefined;
+        const parsed = new Date(stamp).getTime();
+        return Number.isNaN(parsed) ? stamp : parsed;
+    };
+
+    const getImageUrl = (path, cacheKey) => {
+        if (!path) return "/placeholder.svg";
+        const BASE = API_URL || '';
+        let finalUrl = '';
+
+        // روابط خارجية
+        if (path.startsWith('http')) finalUrl = path;
+        // blob URLs
+        else if (path.startsWith('blob:')) finalUrl = path;
+        // data URLs
+        else if (path.startsWith('data:')) finalUrl = path;
+        // المسارات النسبية
+        else if (path.startsWith('/')) {
+            if (path.includes('/uploads')) {
+                const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+                finalUrl = `${baseUrl}${path}`;
+            } else {
+                finalUrl = `${BASE}${path}`;
+            }
+        } else {
+            const baseUrl = BASE.endsWith('/api') ? BASE.replace('/api', '') : BASE;
+            finalUrl = `${baseUrl}/uploads/${path}`;
+        }
+
+        // cache-busting
+        if (cacheKey && !finalUrl.startsWith('blob:') && !finalUrl.startsWith('data:')) {
+            const sep = finalUrl.includes('?') ? '&' : '?';
+            return `${finalUrl}${sep}v=${cacheKey}`;
+        }
+        return finalUrl;
     };
 
     const deleteHandler = async (id) => {
@@ -75,16 +108,17 @@ export default function AdminProductsClient({ products: initialProducts }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredProducts.map((product) => (
+                            {filteredProducts.map((product) => {
+                                const productImage = product.images?.length ? product.images[0] : product.image;
+                                const cacheKey = buildCacheKey(product);
+                                return (
                                 <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                     <td className="p-4">
                                         <img 
-                                            src={getImageUrl(product.image)} 
+                                            src={getImageUrl(productImage, cacheKey)} 
                                             className="w-16 h-20 object-cover rounded-xl shadow-sm bg-white" 
                                             alt={product.name}
-                                            onError={(e) => {
-                                                e.target.src = "https://via.placeholder.com/100";
-                                            }}
+                                            onError={(e) => { e.target.src = '/placeholder.svg'; }}
                                         />
                                     </td>
                                     <td className="p-4 font-black text-gray-800">{product.name}</td>
@@ -93,7 +127,7 @@ export default function AdminProductsClient({ products: initialProducts }) {
                                     <td className="p-4 font-bold text-gray-500">{product.countInStock} قطعة</td>
                                     <td className="p-4">
                                         <div className="flex items-center justify-center gap-2">
-                                            <Link href={`/admin/product/${product.id}/edit`} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                                            <Link href={`/admin/product/edit/${product.id}`} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
                                                 <Edit size={18} />
                                             </Link>
                                             <button 
@@ -105,7 +139,8 @@ export default function AdminProductsClient({ products: initialProducts }) {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

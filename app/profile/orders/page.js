@@ -33,8 +33,14 @@ export default function OrdersPage() {
     const [expandedOrder, setExpandedOrder] = useState(null);
 
     useEffect(() => {
+        // التحقق من تسجيل الدخول
+        const userInfo = localStorage.getItem('userInfo');
+        if (!userInfo) {
+            router.push('/login');
+            return;
+        }
         fetchOrders();
-    }, []);
+    }, [router]);
 
     const fetchOrders = async () => {
         try {
@@ -44,6 +50,9 @@ export default function OrdersPage() {
             console.error('خطأ في جلب الطلبات:', error);
             if (error.response?.status === 401) {
                 router.push('/login');
+            } else {
+                // إذا فشل الاتصال بالخادم، نعرض قائمة فارغة
+                setOrders([]);
             }
         } finally {
             setLoading(false);

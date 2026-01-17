@@ -22,10 +22,10 @@ export default function EditUserPage() {
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const { data } = await api.get(`/api/users/${id}`);
-                setName(data.name);
-                setEmail(data.email);
-                setIsAdmin(data.isAdmin);
+                const { data } = await api.get(`/users/${id}`);
+                setName(data.name ?? '');
+                setEmail(data.email ?? '');
+                setIsAdmin(data.isAdmin ?? false);
                 setLoading(false);
             } catch (err) {
                 toast.error('تعذر جلب بيانات المستخدم');
@@ -41,7 +41,7 @@ export default function EditUserPage() {
         e.preventDefault();
         setUpdateLoading(true);
         try {
-            await api.put(`/api/users/${id}`, { name, email, isAdmin });
+            await api.put(`/users/${id}`, { name, email, isAdmin });
             toast.success('تم تحديث بيانات المستخدم بنجاح');
             router.push('/admin/user'); // العودة للقائمة بعد النجاح
         } catch (err) {

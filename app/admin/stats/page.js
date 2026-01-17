@@ -43,14 +43,22 @@ export default function AdminStatsPage() {
         const fetchStats = async () => {
             try {
                 // جلب المنتجات والمستخدمين من الـ API الموجود
-                const [productsRes, usersRes] = await Promise.all([
-                    api.get('/products'),
-                    api.get('/users')
-                ]);
+                const productsRes = await api.get('/products');
+                
+                let totalUsers = 0;
+                try {
+                    const usersRes = await api.get('/users');
+                    totalUsers = usersRes.data.length;
+                } catch (err) {
+                    if (err.response?.status !== 404) {
+                        console.error('خطأ في جلب المستخدمين:', err);
+                    }
+                    // إذا كان 404 نتجاهل الخطأ والنتقل للأمام
+                }
                 
                 setStats({
                     totalProducts: productsRes.data.length,
-                    totalUsers: usersRes.data.length,
+                    totalUsers: totalUsers,
                     totalOrders: 0, // سيتم تحديثه لاحقاً
                     totalRevenue: 0 // سيتم تحديثه لاحقاً
                 });
