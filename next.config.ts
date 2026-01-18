@@ -1,5 +1,17 @@
 import type { NextConfig } from "next";
 
+// Log environment on build time
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (NODE_ENV === 'production') {
+  console.log('✅ Building for PRODUCTION');
+  console.log('📡 Using API URL:', API_URL);
+} else {
+  console.log('✅ Building for DEVELOPMENT');
+  console.log('📡 Using API URL:', API_URL);
+}
+
 const nextConfig: NextConfig = {
   /* config options here */
   productionBrowserSourceMaps: false,
