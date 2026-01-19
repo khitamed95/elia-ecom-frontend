@@ -26,6 +26,13 @@ export default function ProductDetailsPage() {
     const [isKidsShoe, setIsKidsShoe] = useState(false);
     const [liked, setLiked] = useState(false);
     const [cacheKey, setCacheKey] = useState(Date.now());
+    // Ratings state
+    const [reviews, setReviews] = useState([]);
+    const [myRating, setMyRating] = useState(0);
+    const [myComment, setMyComment] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [userId, setUserId] = useState(null);
 
     const checkIsShoe = (product) => {
         if (!product) return false;
@@ -85,6 +92,12 @@ export default function ProductDetailsPage() {
     }
 
     useEffect(() => {
+        // capture current logged-in user id from localStorage
+        try {
+            const ui = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            setUserId(ui?.id || ui?._id || ui?.userId || null);
+        } catch {}
+
         const fetchProduct = async () => {
             try {
                 const { data } = await api.get(`/api/products/${id}`);
@@ -132,6 +145,7 @@ export default function ProductDetailsPage() {
                 setAllImages(resolvedImages);
                 setCacheKey(Date.now());
                 setLoading(false);
+                await loadReviews();
             } catch (err) {
                 toast.error('لم يتم العثور على المنتج');
                 router.push('/');
@@ -139,6 +153,81 @@ export default function ProductDetailsPage() {
         };
         fetchProduct();
     }, [id]);
+
+    // Load product reviews
+    const loadReviews = async () => {
+        try {
+            const { data } = await api.get(`/api/products/${id}/ratings`);
+            const list = Array.isArray(data) ? data : (data?.reviews || []);
+            setReviews(list);
+            const uid = (userId || (() => { try { const ui = JSON.parse(localStorage.getItem('userInfo')||'{}'); return ui?.id || ui?._id || ui?.userId || null; } catch { return null; } })());
+            if (uid) {
+                const mine = list.find(r => (r?.user && (r.user.id === uid || r.user._id === uid)) || r?.userId === uid);
+                if (mine) {
+                    setMyRating(Number(mine.rating) || 0);
+                    setMyComment(mine.comment || '');
+                } else {
+                    setMyRating(0);
+                    setMyComment('');
+                }
+            }
+        } catch (err) {
+            console.error('fetch ratings error:', err);
+        }
+    };
+
+    const handleSubmitRating = async () => {
+        if (!userId) {
+            toast.info('يرجى تسجيل الدخول للتقييم');
+            router.push(`/login?redirect=/product/${id}`);
+            return;
+        }
+        if (!myRating || myRating < 1 || myRating > 5) {
+            toast.warn('اختر عدد النجوم من 1 إلى 5');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await api.post(`/api/products/${id}/rate`, { rating: myRating, comment: myComment });
+            toast.success('تم حفظ تقييمك');
+            await loadReviews();
+        } catch (err) {
+            const msg = err?.response?.data?.message || 'فشل حفظ التقييم';
+            toast.error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDeleteRating = async () => {
+        if (!userId) {
+            toast.info('يرجى تسجيل الدخول');
+            router.push(`/login?redirect=/product/${id}`);
+            return;
+        }
+        setDeleting(true);
+        try {
+            await api.delete(`/api/products/${id}/rate`);
+            toast.success('تم حذف تقييمك');
+            setMyRating(0);
+            setMyComment('');
+            await loadReviews();
+        } catch (err) {
+            // fallback to possible alternative route
+            try {
+                await api.delete(`/api/products/${id}/ratings/me`);
+                toast.success('تم حذف تقييمك');
+                setMyRating(0);
+                setMyComment('');
+                await loadReviews();
+            } catch (err2) {
+                const msg = err?.response?.data?.message || err2?.response?.data?.message || 'فشل حذف التقييم';
+                toast.error(msg);
+            }
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     const handleAddToCart = () => {
         if (sizes.length > 0 && !selectedSize) {
@@ -194,6 +283,73 @@ export default function ProductDetailsPage() {
 
                 {/* قسم المعلومات */}
                 <div className="flex flex-col">
+
+                        {/* Ratings & Reviews Section */}
+                        <div className="mt-10 space-y-6">
+                            <h3 className="text-2xl font-black flex items-center gap-3">
+                                تقييمات المنتج
+                                <span className="text-sm font-bold text-gray-500">(المتوسط: {Number(product?.rating || 0).toFixed(1)} / 5)</span>
+                                {typeof product?.numReviews === 'number' && (
+                                    <span className="text-xs font-bold text-gray-400">عدد التقيمات: {product.numReviews}</span>
+                                )}
+                            </h3>
+
+                            {/* My rating editor */}
+                            <div className="p-5 rounded-2xl border border-gray-100 bg-gray-50">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        {[...Array(5)].map((_, i) => (
+                                            <button key={i} onClick={() => setMyRating(i + 1)} className="p-1">
+                                                <Star size={20} fill={i < myRating ? '#fbbf24' : '#e5e7eb'} stroke="#fbbf24" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {myRating > 0 && (
+                                        <button onClick={handleDeleteRating} disabled={deleting} className="text-red-500 font-bold text-sm hover:underline">
+                                            {deleting ? 'جارٍ الحذف...' : 'حذف تقييمي'}
+                                        </button>
+                                    )}
+                                </div>
+                                <textarea
+                                    className="w-full p-4 rounded-xl border-2 border-transparent bg-white focus:border-indigo-600 outline-none font-bold text-sm"
+                                    placeholder="اكتب تعليقك (اختياري)"
+                                    rows={3}
+                                    value={myComment}
+                                    onChange={(e) => setMyComment(e.target.value)}
+                                />
+                                <div className="flex justify-end mt-3">
+                                    <button onClick={handleSubmitRating} disabled={submitting} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black hover:bg-black transition-all">
+                                        {submitting ? 'جارٍ الحفظ...' : (myRating > 0 ? 'حفظ التقييم' : 'اختر النجوم أولاً')}
+                                    </button>
+                                </div>
+                                {!userId && (
+                                    <p className="text-xs text-gray-400 mt-2">يجب تسجيل الدخول للتقييم. <a href={`/login?redirect=/product/${id}`} className="text-indigo-600 font-bold">تسجيل الدخول</a></p>
+                                )}
+                            </div>
+
+                            {/* Reviews list */}
+                            <div className="space-y-4">
+                                {reviews.length === 0 && (
+                                    <p className="text-gray-400 font-bold">لا توجد تقييمات بعد.</p>
+                                )}
+                                {reviews.map((rev, idx) => (
+                                    <div key={rev.id || rev._id || idx} className="p-5 rounded-2xl border border-gray-100 bg-white">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="font-black text-gray-900">{rev?.user?.name || rev?.userName || 'مستخدم'}</div>
+                                            <div className="flex items-center gap-1">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} size={16} fill={i < (rev?.rating || 0) ? '#fbbf24' : '#e5e7eb'} stroke="#fbbf24" />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {rev?.comment && <p className="text-sm text-gray-600 font-bold">{rev.comment}</p>}
+                                        {rev?.createdAt && (
+                                            <div className="text-[11px] text-gray-400 mt-2">{new Date(rev.createdAt).toLocaleDateString('ar-IQ')}</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     <div className="mb-6">
                         <h1 className="text-5xl font-black text-gray-900 mb-4 tracking-tighter uppercase leading-tight">
                             {product.name}
