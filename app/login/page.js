@@ -1,23 +1,22 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import api from '@/lib/axios';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { LogIn, Mail, Lock, Loader2, AtSign } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { motion } from 'framer-motion';
 import AnimatedInput from '@/components/AnimatedInput';
 import AnimatedButton from '@/components/AnimatedButton';
+import { LoginContent } from './login-client';
 
-export default function LoginPage() {
+function LoginFormContent({ redirectParam = '' }) {
     const [emailOrUsername, setEmailOrUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(true);
     const [errors, setErrors] = useState({});
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const redirectParam = searchParams?.get('redirect') || '';
 
     const computeTargetRoute = (user) => {
         const requested = decodeURIComponent(redirectParam || '').trim();
@@ -248,5 +247,27 @@ export default function LoginPage() {
                 </motion.p>
             </motion.div>
         </div>
+    );
+}
+
+// Suspense Fallback
+function LoginSkeleton() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+            <div className="animate-pulse">
+                <Loader2 className="animate-spin text-indigo-600" size={48} />
+            </div>
+        </div>
+    );
+}
+
+// الصفحة الرئيسية مع Suspense
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<LoginSkeleton />}>
+            <LoginContent>
+                {({ redirectParam }) => <LoginFormContent redirectParam={redirectParam} />}
+            </LoginContent>
+        </Suspense>
     );
 }
