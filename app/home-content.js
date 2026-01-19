@@ -165,6 +165,11 @@ export function HomePageContent() {
 
     // دالة معالجة التقييم
     const handleRating = async (productId, rating) => {
+        // تعطيل مؤقت حتى يتم إضافة endpoint في الباك-اند
+        toast.info('نظام التقييم قيد التطوير');
+        return;
+        
+        /* سيتم تفعيله لاحقاً عند إضافة endpoint
         try {
             await api.post(`/api/products/${productId}/rate`, { rating });
             toast.success(`تم تقييم المنتج بـ ${rating} نجوم`);
@@ -180,6 +185,7 @@ export function HomePageContent() {
             console.error('Rating error:', error);
             toast.error(error.response?.data?.message || 'فشل في تقييم المنتج');
         }
+        */
     };
 
     return (
