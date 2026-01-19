@@ -64,10 +64,10 @@ export default function Navbar() {
             {/* الراية الترويجية تحت الـ navbar */}
             {!isScrolled && !isAuthPage && (
                 <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 mt-4 text-center animate-in fade-in duration-500">
-                    <h2 className="text-5xl md:text-6xl font-black tracking-tight mb-4">
+                    <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 px-4">
                         اكتشف أحدث المجموعات
                     </h2>
-                    <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
+                    <div className="flex flex-col md:flex-row gap-4 justify-center items-center px-4">
                         <button 
                             onClick={() => router.push('/#products-section')}
                             className="flex items-center gap-2 bg-white text-indigo-600 px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform"

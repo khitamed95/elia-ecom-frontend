@@ -41,6 +41,21 @@ export default function CheckoutPage() {
     // لضمان التوافق مع Next.js وتفادي مشاكل الـ Hydration
     useEffect(() => {
         setIsMounted(true);
+        
+        // جلب معلومات المستخدم من localStorage
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            if (userInfo) {
+                setFormData(prev => ({
+                    ...prev,
+                    fullName: userInfo.name || prev.fullName,
+                    phoneNumber: userInfo.phone || prev.phoneNumber
+                }));
+            }
+        } catch (error) {
+            console.error('خطأ في قراءة معلومات المستخدم:', error);
+        }
+        
         const fetchSettings = async () => {
             try {
                 const { data } = await api.get('/settings');
@@ -232,7 +247,18 @@ export default function CheckoutPage() {
                                         <option value="بابل">بابل</option>
                                         <option value="النجف">النجف</option>
                                         <option value="كربلاء">كربلاء</option>
-                                        <option value="محافظة أخرى">باقي المحافظات</option>
+                                        <option value="الأنبار">الأنبار</option>
+                                        <option value="نينوى">نينوى</option>
+                                        <option value="ذي قار">ذي قار</option>
+                                        <option value="القادسية">القادسية</option>
+                                        <option value="المثنى">المثنى</option>
+                                        <option value="ميسان">ميسان</option>
+                                        <option value="واسط">واسط</option>
+                                        <option value="صلاح الدين">صلاح الدين</option>
+                                        <option value="كركوك">كركوك</option>
+                                        <option value="ديالى">ديالى</option>
+                                        <option value="دهوك">دهوك</option>
+                                        <option value="السليمانية">السليمانية</option>
                                     </select>
                                 </div>
                                 <div className="space-y-3">
