@@ -49,58 +49,59 @@ export default function CartPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] p-6 md:p-12" dir="rtl">
+        <div className="min-h-screen bg-[#f8fafc] p-4 md:p-6 lg:p-12" dir="rtl">
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-4xl font-black mb-10 flex items-center gap-4">
-                    <ShoppingBag className="text-indigo-600" size={40} /> حقيبة المشتريات
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-6 md:mb-10 flex items-center gap-3 md:gap-4">
+                    <ShoppingBag className="text-indigo-600" size={32} /> حقيبة المشتريات
                 </h1>
 
-                <div className="grid lg:grid-cols-3 gap-10">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid lg:grid-cols-3 gap-6 md:gap-10">
+                    <div className="lg:col-span-2 space-y-4 md:space-y-6">
                         {cartItems.map((item) => (
-                            <div key={item.cartKey} className="bg-white p-6 rounded-[2.5rem] shadow-sm flex items-center gap-6">
-                                <div className="w-24 h-32 rounded-2xl overflow-hidden shrink-0">
+                            <div key={item.cartKey} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
+                                <div className="w-20 h-24 sm:w-24 sm:h-32 rounded-xl md:rounded-2xl overflow-hidden shrink-0">
                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-black">{item.name}</h3>
-                                    <p className="text-sm text-gray-400 font-bold">المقاس: {item.size} | اللون: {item.color}</p>
-                                    <div className="text-xl font-black mt-2">{item.price.toLocaleString()} د.ع</div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base md:text-lg font-black truncate">{item.name}</h3>
+                                    <p className="text-xs md:text-sm text-gray-400 font-bold">المقاس: {item.size} | اللون: {item.color}</p>
+                                    <div className="text-lg md:text-xl font-black mt-2">{item.price.toLocaleString()} د.ع</div>
                                 </div>
-                                <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl">
-                                    <button onClick={() => addToCart(item, -1, item.size, item.color)} disabled={item.qty === 1} className="p-2"><Minus size={18} /></button>
-                                    <span className="font-black">{item.qty}</span>
-                                    <button onClick={() => addToCart(item, 1, item.size, item.color)} className="p-2"><Plus size={18} /></button>
+                                <div className="flex items-center gap-3 md:gap-4 bg-gray-50 p-2 rounded-xl md:rounded-2xl w-full sm:w-auto justify-between sm:justify-start">
+                                    <button onClick={() => addToCart(item, -1, item.size, item.color)} disabled={item.qty === 1} className="p-2"><Minus size={16} /></button>
+                                    <span className="font-black text-lg">{item.qty}</span>
+                                    <button onClick={() => addToCart(item, 1, item.size, item.color)} className="p-2"><Plus size={16} /></button>
+                                    <button onClick={() => removeFromCart(item.cartKey)} className="text-red-400 hover:text-red-600 sm:hidden"><Trash2 size={20} /></button>
                                 </div>
-                                <button onClick={() => removeFromCart(item.cartKey)} className="text-red-400 hover:text-red-600"><Trash2 size={24} /></button>
+                                <button onClick={() => removeFromCart(item.cartKey)} className="text-red-400 hover:text-red-600 hidden sm:block"><Trash2 size={24} /></button>
                             </div>
                         ))}
                     </div>
 
-                    <div className="bg-white p-8 rounded-[3rem] shadow-xl h-fit sticky top-10">
-                        <h3 className="text-xl font-black mb-8 border-b pb-4">ملخص الطلب</h3>
+                    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[3rem] shadow-xl h-fit sticky top-10">
+                        <h3 className="text-lg md:text-xl font-black mb-6 md:mb-8 border-b pb-4">ملخص الطلب</h3>
                         <div className="mb-6 space-y-2">
                             <label className="text-xs font-black text-gray-400">اختر المحافظة للتوصيل</label>
-                            <select className="w-full p-4 bg-gray-50 rounded-2xl font-bold" value={city} onChange={(e) => setCity(e.target.value)}>
+                            <select className="w-full p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl font-bold text-sm md:text-base" value={city} onChange={(e) => setCity(e.target.value)}>
                                 <option value="بغداد">داخل بغداد</option>
                                 <option value="محافظة">كافة المحافظات الأخرى</option>
                             </select>
                         </div>
-                        <div className="space-y-4 mb-8">
-                            <div className="flex justify-between font-bold text-gray-500">
+                        <div className="space-y-3 md:space-y-4 mb-6 md:mb-8">
+                            <div className="flex justify-between font-bold text-sm md:text-base text-gray-500">
                                 <span>مجموع القطع</span>
                                 <span>{itemsPrice.toLocaleString()} د.ع</span>
                             </div>
-                            <div className="flex justify-between font-bold text-gray-500">
+                            <div className="flex justify-between font-bold text-sm md:text-base text-gray-500">
                                 <span>التوصيل</span>
                                 <span>{deliveryPrice.toLocaleString()} د.ع</span>
                             </div>
-                            <div className="flex justify-between pt-6 border-t text-2xl font-black">
+                            <div className="flex justify-between pt-4 md:pt-6 border-t text-xl md:text-2xl font-black">
                                 <span>الإجمالي</span>
                                 <span className="text-green-600">{totalPrice.toLocaleString()} د.ع</span>
                             </div>
                         </div>
-                        <button onClick={checkoutHandler} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl">إتمام الشراء</button>
+                        <button onClick={checkoutHandler} className="w-full bg-indigo-600 text-white py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-lg md:text-xl">إتمام الشراء</button>
                     </div>
                 </div>
             </div>
