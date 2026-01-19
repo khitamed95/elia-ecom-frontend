@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import AnimatedInput from '@/components/AnimatedInput';
 import AnimatedButton from '@/components/AnimatedButton';
 import { LoginContent } from './login-client';
+import { GoogleIconSVG } from '@/components/GoogleIcon';
 
 function LoginFormContent({ redirectParam = '' }) {
     const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -222,12 +223,9 @@ function LoginFormContent({ redirectParam = '' }) {
                     fullWidth
                     size="lg"
                     disabled={loading}
+                    className="flex items-center justify-center gap-2"
                 >
-                    <img
-                        src="https://www.svgrepo.com/show/475656/google-color.svg"
-                        className="w-5 h-5 ml-2"
-                        alt="google"
-                    />
+                    <GoogleIconSVG size={22} />
                     الدخول عبر جوجل
                 </AnimatedButton>
 
