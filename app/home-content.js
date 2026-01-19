@@ -6,6 +6,7 @@ import Button from '@/components/Button';
 import { ShoppingCart, ArrowLeft, Star, Sparkles, TrendingUp, Package, Zap, Shield, Truck, Plus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { getImageUrl } from '@/lib/imageUtil';
+import { toast } from 'react-toastify';
 
 // دالة للحصول على timestamp للصور من localStorage
 function getImageTimestamp(productId) {
@@ -162,6 +163,25 @@ export function HomePageContent() {
         }, 100);
     };
 
+    // دالة معالجة التقييم
+    const handleRating = async (productId, rating) => {
+        try {
+            await api.post(`/api/products/${productId}/rate`, { rating });
+            toast.success(`تم تقييم المنتج بـ ${rating} نجوم`);
+            
+            // تحديث التقييم محلياً
+            setProducts(prev => prev.map(p => 
+                p._id === productId ? { ...p, rating } : p
+            ));
+            setAllProducts(prev => prev.map(p => 
+                p._id === productId ? { ...p, rating } : p
+            ));
+        } catch (error) {
+            console.error('Rating error:', error);
+            toast.error(error.response?.data?.message || 'فشل في تقييم المنتج');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50 text-[#1a1a1a]" dir="rtl">
             
@@ -313,14 +333,25 @@ export function HomePageContent() {
                                                         <span className="line-through text-gray-400 text-sm">{product.originalPrice} د.ع</span>
                                                     )}
                                                 </div>
-                                                <div className="flex gap-1">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <Star key={i} size={14} fill={i < Math.floor(product.rating || 0) ? '#fbbf24' : '#e5e7eb'} />
-                                                    ))}
-                                                </div>
                                             </div>
                                         </div>
                                     </Link>
+                                    {/* نظام التقييم التفاعلي - منفصل عن الرابط */}
+                                    <div 
+                                        className="flex gap-1 justify-end -mt-2 mb-2"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star 
+                                                key={i} 
+                                                size={14} 
+                                                className="cursor-pointer hover:scale-125 transition-transform"
+                                                fill={i < Math.floor(product.rating || 0) ? '#fbbf24' : '#e5e7eb'}
+                                                stroke="#fbbf24"
+                                                onClick={() => handleRating(product.id, i + 1)}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                                 );
                             })}
