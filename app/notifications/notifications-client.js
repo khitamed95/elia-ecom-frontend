@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell, Check, CheckCheck, Trash2, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Bell, CheckCheck, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import {
   markNotificationAsRead,
@@ -12,6 +13,7 @@ import {
 
 export default function NotificationsClient({ initialNotifications }) {
   const [notifications, setNotifications] = useState(initialNotifications);
+  const router = useRouter();
 
   const markAsRead = async (id) => {
     try {
@@ -23,6 +25,19 @@ export default function NotificationsClient({ initialNotifications }) {
     } catch (error) {
       console.error('Error:', error);
       toast.error('حدث خطأ أثناء تحديث الإشعار');
+    }
+  };
+
+  const handleOpen = async (notification) => {
+    try {
+      if (!notification.isRead) {
+        await markAsRead(notification.id);
+      }
+      if (notification.link) {
+        router.push(notification.link);
+      }
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
@@ -128,7 +143,8 @@ export default function NotificationsClient({ initialNotifications }) {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`bg-white rounded-2xl shadow-lg p-6 transition-all hover:shadow-xl ${
+            onClick={() => handleOpen(notification)}
+            className={`bg-white rounded-2xl shadow-lg p-6 transition-all hover:shadow-xl cursor-pointer ${
               !notification.isRead ? 'border-r-4 border-indigo-600' : ''
             }`}
           >
@@ -159,27 +175,19 @@ export default function NotificationsClient({ initialNotifications }) {
                   </div>
                   
                   {notification.link && (
-                    <a href={notification.link}>
-                      <button className="mt-3 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-100 transition text-sm font-medium">
-                        عرض التفاصيل
-                      </button>
-                    </a>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpen(notification); }}
+                      className="mt-3 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-100 transition text-sm font-medium"
+                    >
+                      عرض التفاصيل
+                    </button>
                   )}
                 </div>
               </div>
 
               <div className="flex gap-2 mr-4">
-                {!notification.isRead && (
-                  <button
-                    onClick={() => markAsRead(notification.id)}
-                    className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition"
-                    title="تحديد كمقروء"
-                  >
-                    <Check size={20} />
-                  </button>
-                )}
                 <button
-                  onClick={() => deleteNotif(notification.id)}
+                  onClick={(e) => { e.stopPropagation(); deleteNotif(notification.id); }}
                   className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
                   title="حذف"
                 >
