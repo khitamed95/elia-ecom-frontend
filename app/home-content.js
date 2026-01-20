@@ -166,7 +166,7 @@ export function HomePageContent() {
     // دالة معالجة التقييم
     const handleRating = async (productId, rating) => {
         // تعطيل مؤقت حتى يتم إضافة endpoint في الباك-اند
-        toast.info('نظام التقييم قيد التطوير');
+        toast.info('نظام التقييم متوفر في صفحة المنتج - اضغط على المنتج للتقييم');
         return;
         
         /* سيتم تفعيله لاحقاً عند إضافة endpoint

@@ -38,6 +38,7 @@ export default function EditProductPage() {
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [imageErrors, setImageErrors] = useState({});
     const [cacheKey, setCacheKey] = useState(Date.now());
+    const [externalUrls, setExternalUrls] = useState(['']); // روابط خارجية متعددة
     
     const [formData, setFormData] = useState({
         name: '',
@@ -168,6 +169,15 @@ export default function EditProductPage() {
             const imagesToShow = data.images && data.images.length > 0 ? data.images : [data.image];
             console.log('🖼️ الصور المراد عرضها:', imagesToShow);
             setPreviews(imagesToShow);
+            
+            // تحديث الروابط الخارجية
+            if (data.images && data.images.length > 0) {
+                const urls = data.images.filter(img => img && typeof img === 'string' && img.startsWith('http'));
+                setExternalUrls(urls.length > 0 ? urls : ['']);
+            } else if (data.image && typeof data.image === 'string' && data.image.startsWith('http')) {
+                setExternalUrls([data.image]);
+            }
+            
             setImageErrors({}); // امسح أي أخطاء سابقة
             setCacheKey(Date.now());
             setLoading(false);
@@ -366,8 +376,13 @@ export default function EditProductPage() {
                 setUpdateLoading(false);
             }
         } else {
-            // رفع عبر رابط مباشر
-            const jsonPayload = { ...payload, image: formData.image || '' };
+            // رفع عبر روابط مباشرة متعددة
+            const validUrls = externalUrls.filter(url => url && url.trim().length > 0);
+            const jsonPayload = { 
+                ...payload, 
+                image: validUrls[0] || '', 
+                images: validUrls.length > 0 ? validUrls : undefined 
+            };
             try {
                 const response = await api.put(`/api/products/${id}`, jsonPayload);
                 
@@ -378,9 +393,9 @@ export default function EditProductPage() {
                 
                 toast.success('تم التحديث بنجاح ✨');
                 
-                // تحديث المعاينة بالصورة التي عادت من الخادم (إن وجدت)
-                const newPreview = response.data?.image || formData.image || previews[0];
-                setPreviews([newPreview]);
+                // تحديث المعاينة بالصور التي عادت من الخادم
+                const newPreviews = response.data?.images || validUrls || previews;
+                setPreviews(newPreviews);
                 setCacheKey(Date.now());
 
                 // أطلق حدث لتحديث الصفحة الرئيسية والصفحات الأخرى
@@ -637,14 +652,49 @@ export default function EditProductPage() {
                         )}
                         
                         {uploadMethod === 'url' && (
-                            <input 
-                                type="text" 
-                                value={formData.image ?? ''} 
-                                onChange={(e) => setFormData({...formData, image: e.target.value})} 
-                                className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-mono text-sm" 
-                                dir="ltr" 
-                                placeholder="https://images.unsplash.com/photo-..."
-                            />
+                            <div className="space-y-3">
+                                {externalUrls.map((url, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={url} 
+                                            onChange={(e) => {
+                                                const newUrls = [...externalUrls];
+                                                newUrls[idx] = e.target.value;
+                                                setExternalUrls(newUrls);
+                                                // تحديث المعاينة فوراً
+                                                if (e.target.value.trim()) {
+                                                    setPreviews(newUrls.filter(u => u && u.trim().length > 0));
+                                                }
+                                            }} 
+                                            className="flex-1 p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 outline-none focus:border-indigo-500 font-mono text-sm" 
+                                            dir="ltr" 
+                                            placeholder={`رابط الصورة ${idx + 1} (https://...)`}
+                                        />
+                                        {externalUrls.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newUrls = externalUrls.filter((_, i) => i !== idx);
+                                                    setExternalUrls(newUrls.length > 0 ? newUrls : ['']);
+                                                    setPreviews(newUrls.filter(u => u && u.trim().length > 0));
+                                                }}
+                                                className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setExternalUrls([...externalUrls, ''])}
+                                    className="w-full p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-bold flex items-center justify-center gap-2"
+                                >
+                                    <LinkIcon size={18} />
+                                    إضافة رابط صورة آخر
+                                </button>
+                            </div>
                         )}
                     </div>
 
