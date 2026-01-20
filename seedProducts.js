@@ -1,5 +1,4 @@
 ﻿import prisma from './lib/prisma.js';
-import { v4 as uuidv4 } from 'uuid';
 
 // في حال كانت لديك صور فعلية مرفوعة في مجلد uploads على الباكند،
 // احرص على أن تكون أسماء الملفات هنا مطابقة لما هو موجود هناك.
@@ -38,40 +37,31 @@ const products = [
 
 async function seedProducts() {
     console.log(' جاري إضافة المنتجات...\n');
-    
-    let added = 0;
-    
-    for (const productData of products) {
-        try {
-            // استخدام اسم ملف عام - الصور ستكون placeholder حتى يتم رفع صور حقيقية
-            const product = await prisma.product.create({
-                data: {
-                    id: uuidv4(),
-                    name: productData.name,
-                    price: productData.price,
-                    description: productData.description,
-                    category: productData.category,
-                    // ضع مسار الصورة (سيتم تحويل /uploads تلقائياً إلى رابط كامل في الفرونت)
-                    image: productData.image || '/placeholder.svg',
-                    images: [productData.image || '/placeholder.svg'],
-                    brand: productData.brand,
-                    countInStock: 100,
-                    availableSizes: productData.availableSizes,
-                    isPopular: Math.random() > 0.5,
-                    userId: null // يمكن ربطه بمستخدم admin لاحقاً
-                }
-            });
-            
-            console.log(` ${added + 1}. ${product.name} - ${product.price} د.ع`);
-            added++;
-        } catch (error) {
-            console.error(` خطأ في إضافة ${productData.name}:`, error.message);
-        }
+
+    try {
+        const result = await prisma.product.createMany({
+            data: products.map((p) => ({
+                name: p.name,
+                price: p.price,
+                description: p.description,
+                category: p.category,
+                image: p.image || '/placeholder.svg',
+                images: [p.image || '/placeholder.svg'],
+                brand: p.brand,
+                countInStock: 100,
+                availableSizes: p.availableSizes,
+                isPopular: Math.random() > 0.5,
+                userId: null,
+            })),
+            skipDuplicates: true, // لن يكرر المنتجات إذا كانت موجودة بنفس القيم الفريدة
+        });
+
+        console.log(`\n تم إضافة ${result.count} منتج (تم تخطي المتكرر تلقائياً).`);
+        console.log('\n ملاحظة: المنتجات ستظهر بصورة placeholder.');
+        console.log(' يمكنك تعديل المنتجات وإضافة صور حقيقية من لوحة الإدمن.');
+    } catch (error) {
+        console.error('\n حدث خطأ أثناء عملية seeding:', error.message);
     }
-    
-    console.log(`\n تم إضافة ${added} منتج بنجاح!`);
-    console.log('\n ملاحظة: المنتجات ستظهر بصورة placeholder.');
-    console.log(' يمكنك تعديل المنتجات وإضافة صور حقيقية من لوحة الإدمن.');
 }
 
 seedProducts()
