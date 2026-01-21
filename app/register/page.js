@@ -4,11 +4,12 @@ import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Button from '@/components/Button';
-import { UserPlus, User, Mail, Lock, Phone } from 'lucide-react';
+import { UserPlus, User, Mail, Lock, Phone, AtSign } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 
 export default function RegisterPage() {
     const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
@@ -80,7 +81,7 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             // إرسال البيانات للخادم
-            const registerData = { name, email, password };
+            const registerData = { name, username, email, password };
             
             // إضافة رقم الهاتف فقط إذا كان موجوداً
             if (phone && phone.trim()) {
@@ -131,6 +132,10 @@ export default function RegisterPage() {
                     <div className="relative border-b-2 border-gray-50 pb-2">
                         <User className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                         <input type="text" placeholder="الاسم الكامل" className="w-full pr-12 py-3 outline-none" value={name} onChange={(e)=>setName(e.target.value)} required />
+                    </div>
+                    <div className="relative border-b-2 border-gray-50 pb-2">
+                        <AtSign className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                        <input type="text" placeholder="اسم المستخدم (username)" className="w-full pr-12 py-3 outline-none" value={username} onChange={(e)=>setUsername(e.target.value)} required />
                     </div>
                     <div className="relative border-b-2 border-gray-50 pb-2">
                         <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
