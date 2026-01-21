@@ -22,6 +22,8 @@ export default function ProductDetailsPage() {
     const [showSizeGuide, setShowSizeGuide] = useState(false);
     const [allImages, setAllImages] = useState([]);
     const [sizes, setSizes] = useState([]); 
+    const [colors, setColors] = useState([]);
+    const [selectedColor, setSelectedColor] = useState('');
     const [isShoe, setIsShoe] = useState(false);
     const [isKidsShoe, setIsKidsShoe] = useState(false);
     const [liked, setLiked] = useState(false);
@@ -117,6 +119,17 @@ export default function ProductDetailsPage() {
                     extractedSizes = data.available_sizes.map((size, idx) => ({ id: idx, size, stock: 99 }));
                 }
                 setSizes(extractedSizes);
+
+                // Extract colors
+                let extractedColors = [];
+                if (Array.isArray(data.availableColors) && data.availableColors.length > 0) {
+                    extractedColors = data.availableColors;
+                } else if (Array.isArray(data.colors) && data.colors.length > 0) {
+                    extractedColors = data.colors;
+                } else if (Array.isArray(data.available_colors) && data.available_colors.length > 0) {
+                    extractedColors = data.available_colors;
+                }
+                setColors(extractedColors);
 
                 // Robust image extraction
                 let images = [];
@@ -234,17 +247,22 @@ export default function ProductDetailsPage() {
             toast.warn('يرجى اختيار المقاس أولاً');
             return;
         }
+        if (colors.length > 0 && !selectedColor) {
+            toast.warn('يرجى اختيار اللون أولاً');
+            return;
+        }
         
         try {
             const productToAdd = {
                 ...product,
                 _id: product._id || product.id,
                 size: selectedSize,
-                selectedSize: selectedSize
+                selectedSize: selectedSize,
+                color: selectedColor,
+                selectedColor: selectedColor
             };
             
             addToCart(productToAdd, 1);
-           // toast.success(`تمت إضافة ${product.name} بمقاس ${selectedSize} ✨`);
         } catch (error) {
             toast.error('حدث خطأ أثناء إضافة المنتج');
         }
@@ -362,6 +380,28 @@ export default function ProductDetailsPage() {
                     <p className="text-gray-500 text-lg font-medium leading-relaxed mb-10">
                         {product.description}
                     </p>
+
+                    {/* اختيار اللون */}
+                    {colors.length > 0 && (
+                        <div className="mb-8 space-y-4">
+                            <h4 className="text-lg font-black text-gray-900 tracking-tight">اختر اللون</h4>
+                            <div className="flex flex-wrap gap-3">
+                                {colors.map((color, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setSelectedColor(color)}
+                                        className={`px-6 py-3 rounded-xl font-bold transition-all border-2 cursor-pointer
+                                            ${selectedColor === color
+                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-lg'
+                                                : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-400'
+                                            }`}
+                                    >
+                                        {color}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* اختيار المقاس */}
                     <div className="mb-10 space-y-4">

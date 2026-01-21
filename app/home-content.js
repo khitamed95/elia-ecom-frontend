@@ -344,8 +344,8 @@ export function HomePageContent() {
                                         {[...Array(5)].map((_, i) => (
                                             <Star 
                                                 key={i} 
-                                                size={14} 
-                                                className="cursor-pointer hover:scale-125 transition-transform"
+                                                size={20} 
+                                                className="cursor-pointer hover:scale-110 transition-transform"
                                                 fill={i < Math.floor(product.rating || 0) ? '#fbbf24' : '#e5e7eb'}
                                                 stroke="#fbbf24"
                                                 onClick={() => handleRating(product.id, i + 1)}
