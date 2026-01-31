@@ -296,13 +296,32 @@ export function HomePageContent() {
                                 })();
                                 // استخدم refreshKey كـ fallback لضمان تحديث الصور بعد التعديل
                                 const cacheKey = productTimestamp || refreshKey;
+                                
+                                // استخراج الصور المتعددة
+                                const images = [];
+                                if (product.image) images.push(product.image);
+                                if (product.images && Array.isArray(product.images)) {
+                                    product.images.forEach(img => {
+                                        if (img && img !== product.image) images.push(img);
+                                    });
+                                }
+                                const firstImage = images[0] || product.image;
+                                const secondImage = images[1] || firstImage;
+                                
                                 return (
                                 <div key={product.id} className="group">
                                     <div className="relative overflow-hidden rounded-2xl bg-gray-200 h-64 mb-4 shadow-lg hover:shadow-2xl transition-all duration-300">
+                                        {/* الصورة الأولى */}
                                         <img 
-                                            src={getImageUrl(product.image, { cacheKey })} 
+                                            src={getImageUrl(firstImage, { cacheKey })} 
                                             alt={product.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-100 group-hover:opacity-0"
+                                        />
+                                        {/* الصورة الثانية - تظهر عند hover */}
+                                        <img 
+                                            src={getImageUrl(secondImage, { cacheKey })} 
+                                            alt={product.name}
+                                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-0 group-hover:opacity-100"
                                         />
                                         <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
                                             {product.discount}%
